@@ -1,0 +1,10 @@
+# Configuration file for ChatListener
+
+# Chat format configuration
+# Possible placeholders:
+chat:
+  format: "<$prefix$username$suffix> $message"
+
+# Prefixes and suffixes for players (example)
+prefixes:
+  default:

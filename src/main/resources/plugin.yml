@@ -1,0 +1,23 @@
+name: 'PowerTools'
+version: '0.1.0-SNAPSHOT'
+main: 'org.winlogon.powertools.PowerToolsPlugin'
+description: 'Fun utilities for everyone!'
+folia-supported: true
+api-version: 1.21
+permissions:
+  powertools.invsee:
+    description: "See other players' inventories"
+    default: op
+  powertools.smite:
+    description: "Send your enemies a taste of electricity from the sky!"
+    default: op
+  powertools.hat:
+    description: "Put the item you're holding on your head"
+    default: true
+commands:
+  invsee:
+    default: op
+  smite:
+    default: op
+  hat:
+    default: true
