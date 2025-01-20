@@ -33,7 +33,7 @@ object ChatFormatting {
     val miniMessageString = miniMessage.serialize(
       LegacyComponentSerializer.legacySection().deserialize(s)
     )
-    val escapedString = s
+    val escapedString = miniMessageString
       .replaceAll("\\\\>", ">")
       .replaceAll("\\\\<", "<")
     val mm = MiniMessage.builder().tags(tagsResolver).build()

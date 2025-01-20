@@ -12,7 +12,7 @@ class SmiteCommand extends CommandExecutor {
     sender: CommandSender, command: Command, label: String, args: Array[String]
   ): Boolean = {
     if (args.length != 1) {
-      sender.sendMessage(s"&7Usage: &3/smite &2<player>")
+      sender.sendMessage(ChatFormatting.apply("&7Usage: &3/smite &2<player>"))
       return true
     }
 
