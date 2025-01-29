@@ -3,7 +3,7 @@ import Dependencies._
 val mainScalaClass = "org.winlogon.powertools.PowerToolsPlugin"
 
 ThisBuild / scalaVersion     := "3.3.4"
-ThisBuild / version          := "0.1.0-SNAPSHOT"
+ThisBuild / version          := "0.1.1-SNAPSHOT"
 ThisBuild / organization     := "org.winlogon"
 ThisBuild / organizationName := "winlogon"
 Compile / mainClass := Some(mainScalaClass)
