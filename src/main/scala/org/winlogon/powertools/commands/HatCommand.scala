@@ -14,9 +14,21 @@ class HatCommand extends CommandExecutor {
       return true
     }
     val player = sender.asInstanceOf[Player]
-    val itemInHand = player.getInventory().getItemInMainHand()
-    player.getInventory().setHelmet(itemInHand)
-    player.getInventory().setItemInMainHand(null)
+    val playerInventory = player.getInventory()
+
+    val itemInHand = playerInventory.getItemInMainHand()
+    val helmetItem = playerInventory.getHelmet()
+
+    val isHelmetEmpty = helmetItem == null
+
+    playerInventory.setHelmet(itemInHand)
+    if (isHelmetEmpty) {
+      playerInventory.setItemInMainHand(null)
+    } else {
+      playerInventory.setItemInHand(helmetItem)
+      player.sendMessage(ChatFormatting.apply("&7Swapping items..."))
+    }
+
     player.updateInventory()
     player.sendMessage(ChatFormatting.apply("&7Your held item is now &3on your head!"))
     return true
