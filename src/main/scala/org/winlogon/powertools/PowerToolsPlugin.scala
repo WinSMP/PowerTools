@@ -8,6 +8,8 @@ import org.winlogon.powertools.commands.*
 class PowerToolsPlugin extends JavaPlugin {
   val commands: Map[String, (CommandExecutor, String)] = Map(
     "invsee" -> (new InvseeCommand(), "powertools.invsee"),
+    "broadcast" -> (new BroadcastCommand(), "powertools.broadcast"),
+    "bc" -> (new BroadcastCommand(), "powertools.broadcast"),
     "smite" -> (new SmiteCommand(), "powertools.smite"),
     "hat" -> (new HatCommand(), "powertools.hat"),
   )

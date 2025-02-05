@@ -14,6 +14,7 @@ object ChatFormatting {
   // TODO: add more tags
   private val tagsResolver = TagResolver.builder()
     .resolver(StandardTags.color())
+    .resolver(StandardTags.reset())
     .resolver(StandardTags.decorations())
     .resolver(StandardTags.gradient())
     .resolver(StandardTags.rainbow())
