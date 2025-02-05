@@ -1,37 +1,31 @@
 package org.winlogon.powertools.commands
 
-import net.kyori.adventure.audience.Audience
-import net.kyori.adventure.platform.bukkit.BukkitAudiences
-import net.kyori.adventure.text.minimessage.MiniMessage
+import org.bukkit.Bukkit
 import org.bukkit.command.{Command, CommandExecutor, CommandSender}
 import org.bukkit.entity.Player
 
-class BroadcastCommand(audiences: BukkitAudiences) extends CommandExecutor {
-  private val miniMessage = MiniMessage.miniMessage()
-  private val broadcastPrefix = "<red>[Broadcast]</red> "
+import org.winlogon.powertools.ChatFormatting
 
-  override def onCommand(sender: CommandSender, 
-                         command: Command,
-                         label: String,
-                         args: Array[String]): Boolean = {
-    
-    // Permission check for players
-    sender match {
-      case player: Player if !player.hasPermission("emirver.broadcast") =>
-        val noPerm = miniMessage.deserialize("<red>You do not have permissions to use that command!</red>")
-        audiences.sender(player).sendMessage(noPerm)
-        return true
-      case _ => // Continue execution for console or permitted players
+class BroadcastCommand extends CommandExecutor {
+  private val broadcastPrefix = "<dark_gray>[<dark_aqua>Broadcast<dark_gray>]"
+
+  override def onCommand(sender: CommandSender, command: Command, label: String, args: Array[String]): Boolean = {
+    if (sender.isInstanceOf[Player] && !sender.hasPermission("powertools.broadcast")) {
+      val noPerm = ChatFormatting.apply("<#F93822>Error: &7You do not have permissions to use that command!")
+      sender.sendMessage(ChatFormatting.apply(s"Player &3${args(0)}&7 is not online."))
+      sender.sendMessage(noPerm)
+      return true
     }
 
     if (args.isEmpty) {
-      val usage = miniMessage.deserialize("<red>Usage: /broadcast <message></red>")
-      audiences.sender(sender).sendMessage(usage)
-    } else {
-      val message = args.mkString(" ")
-      val formattedMessage = miniMessage.deserialize(s"$broadcastPrefix<reset>$message")
-      audiences.all().sendMessage(formattedMessage)
+      val usage = ChatFormatting.apply("&7Usage: &3/broadcast &2<message>")
+      sender.sendMessage(usage)
+      return true
     }
+
+    val message = args.mkString(" ")
+    val formattedMessage = ChatFormatting.apply(s"$broadcastPrefix<reset> &7$message")
+    Bukkit.getOnlinePlayers().forEach(_.sendMessage(formattedMessage))
     
     true
   }

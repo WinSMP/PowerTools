@@ -16,14 +16,18 @@ permissions:
 commands:
   invsee:
     description: "See other players' inventories"
+    usage: /<command> <player>
     default: op
   broadcast:
     description: "Broadcast a message to all players"
+    usage: /<command> <message>
     aliases: [bc]
     default: op
   smite:
     description: "Send your enemies a taste of electricity from the sky!"
+    usage: /<command> <player>
     default: op
   hat:
     description: "Put the item you're holding on your head"
+    usage: /<command>
     default: true
