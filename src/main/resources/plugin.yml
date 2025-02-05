@@ -1,5 +1,5 @@
 name: 'PowerTools'
-version: '0.1.1-SNAPSHOT'
+version: '0.2.0-SNAPSHOT'
 main: 'org.winlogon.powertools.PowerToolsPlugin'
 description: 'Fun utilities for everyone!'
 folia-supported: true
