@@ -13,6 +13,8 @@ permissions:
     default: true
   powertools.broadcast:
     default: op
+  whitelist.manage:
+    default: op
 commands:
   invsee:
     description: "See other players' inventories"
@@ -31,3 +33,7 @@ commands:
     description: "Put the item you're holding on your head"
     usage: /<command>
     default: true
+  whitelistrequest:
+    description: "Request the owner to whitelist an user"
+    aliases: [wlrequest, wlreq]
+    usage: /<command> <subcommand> <player>
