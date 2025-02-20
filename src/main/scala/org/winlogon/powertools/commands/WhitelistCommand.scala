@@ -1,6 +1,8 @@
 package org.winlogon.powertools.commands
 
 import org.bukkit.Bukkit
+import org.bukkit.event.{EventHandler, Listener}
+import org.bukkit.event.player.PlayerJoinEvent
 import org.bukkit.command.{Command, CommandExecutor, CommandSender}
 import org.bukkit.entity.Player
 import org.winlogon.powertools.ChatFormatting
@@ -16,7 +18,10 @@ object WhitelistManager {
   val pendingRequests: mutable.Map[String, WhitelistRequest] = mutable.Map.empty
 }
 
-class WhitelistCommand extends CommandExecutor {
+class WhitelistCommand extends CommandExecutor with Listener {
+  val redColor = "#CE1126"
+  val greenColor = "#3AC867"
+
   override def onCommand(sender: CommandSender, command: Command, label: String, args: Array[String]): Boolean = {
     if (!sender.isInstanceOf[Player]) {
       sender.sendMessage(ChatFormatting.apply("<#F93822>Error&7: Only players can use this command."))
@@ -29,8 +34,6 @@ class WhitelistCommand extends CommandExecutor {
       return true
     }
 
-    val redColor = "#CE1126"
-    val greenColor = "#3AC867"
     args(0).toLowerCase match {
 
       case "request" =>
@@ -105,8 +108,7 @@ class WhitelistCommand extends CommandExecutor {
         true
 
       case "refuse" =>
-        
-        true
+        return refusePlayer(player, args)
 
       case _ =>
         player.sendMessage(ChatFormatting.apply("<#F93822>Error&7: Unknown subcommand. Usage: /whitelistrequest <request|list|accept|refuse>"))
@@ -114,8 +116,13 @@ class WhitelistCommand extends CommandExecutor {
     }
   }
 
-// Refusing a whitelist request.
-  private def refusePlayer(): Unit = {
+  /**
+    * Refuse a whitelist request.
+    *
+    * @param player The player refusing the whitelist request
+    * @param args The command arguments
+    */
+  private def refusePlayer(player: Player, args: Array[String]): Boolean = {
     if (!player.hasPermission("whitelist.manage")) {
       player.sendMessage(ChatFormatting.apply("<#F93822>Error&7: You do not have permission to manage whitelist requests."))
       return true
@@ -136,9 +143,14 @@ class WhitelistCommand extends CommandExecutor {
       case None =>
         player.sendMessage(ChatFormatting.apply(s"<#F93822>Error&7: No whitelist request found for $requester."))
     }
+    return true
   }
 
-  // This helper whitelists a player using the Bukkit API.
+  /**
+    * This helper whitelists a player using the Bukkit API.
+    *
+    * @param player The player to whitelist
+    */
   private def whitelistPlayer(player: Player): Unit = {
     player.setWhitelisted(true)
   }
