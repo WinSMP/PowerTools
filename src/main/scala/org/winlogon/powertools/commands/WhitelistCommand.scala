@@ -9,11 +9,15 @@ import org.winlogon.powertools.ChatFormatting
 
 import scala.collection.mutable
 
-// A simple case class to hold a whitelist request
+/**
+  * A simple case class to hold a whitelist request
+  */
 case class WhitelistRequest(requester: String, target: String)
 
-// A global mutable store to keep pending whitelist requests.
-// The key here is the requester’s name (assuming one request per player)
+/**
+  * A global mutable store to keep pending whitelist requests.
+  * The key here is the requester’s name (assuming one request per player)
+  */
 object WhitelistManager {
   val pendingRequests: mutable.Map[String, WhitelistRequest] = mutable.Map.empty
 }
@@ -154,5 +158,14 @@ class WhitelistCommand extends CommandExecutor with Listener {
   private def whitelistPlayer(player: Player): Unit = {
     player.setWhitelisted(true)
   }
-}
 
+  @EventHandler
+  def onPlayerJoin(event: PlayerJoinEvent): Unit = {
+    val player = event.getPlayer
+    if (player.hasPermission("whitelist.manage") && WhitelistManager.pendingRequests.nonEmpty) {
+      player.sendMessage(ChatFormatting.apply(
+        s"<#FFBF3B>Hello! &7You have &3${WhitelistManager.pendingRequests.size}&7 pending whitelist request(s). <#F93822>Use /whitelistrequest list to review them."
+      ))
+    }
+  }
+}

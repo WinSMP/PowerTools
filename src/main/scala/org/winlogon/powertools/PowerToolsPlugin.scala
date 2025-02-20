@@ -7,11 +7,11 @@ import org.winlogon.powertools.commands.*
 
 class PowerToolsPlugin extends JavaPlugin {
   val commands: Map[String, (CommandExecutor, String)] = Map(
-    "invsee" -> (new InvseeCommand(), "powertools.invsee"),
-    "broadcast" -> (new BroadcastCommand(), "powertools.broadcast"),
-    "bc" -> (new BroadcastCommand(), "powertools.broadcast"),
-    "smite" -> (new SmiteCommand(), "powertools.smite"),
-    "hat" -> (new HatCommand(), "powertools.hat"),
+    "invsee" -> (InvseeCommand(), "powertools.invsee"),
+    "broadcast" -> (BroadcastCommand(), "powertools.broadcast"),
+    "bc" -> (BroadcastCommand(), "powertools.broadcast"),
+    "smite" -> (SmiteCommand(), "powertools.smite"),
+    "hat" -> (HatCommand(), "powertools.hat"),
   )
 
   override def onEnable(): Unit = {
@@ -20,5 +20,6 @@ class PowerToolsPlugin extends JavaPlugin {
       getCommand(command).setExecutor(executor)
       getCommand(command).setPermission(permission)
     }
+    getServer.getPluginManager.registerEvents(WhitelistListener(), this)
   }
 }
