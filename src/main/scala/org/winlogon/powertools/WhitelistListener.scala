@@ -83,9 +83,9 @@ class WhitelistListener extends Listener {
         Option(Bukkit.getPlayer(req.requester)).foreach { reqPlayer =>
           reqPlayer.sendMessage(ChatFormatting.apply(s"&7Your whitelist request for &3${req.target}&7 has been <$redColor>refused."))
         }
-        s"<$redColor>Refused&7 whitelist request: &3${req.requester} for &2${req.target}."
+        s"<$redColor>Refused&7 whitelist request: &3${req.requester}&7 for &2${req.target}."
       case None =>
-        s"<$errorColor>Error&7: No whitelist request found for $requester."
+        s"<$errorColor>Error&7: No whitelist request found for &3$requester."
     }
   }
 
