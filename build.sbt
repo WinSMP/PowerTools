@@ -32,9 +32,11 @@ assembly / mainClass := Some(mainScalaClass)
 libraryDependencies ++= Seq(
   "io.papermc.paper" % "paper-api" % "1.21.4-R0.1-SNAPSHOT" % Provided,
   "net.kyori" % "adventure-text-minimessage" % "4.18.0" % Provided,
+  "dev.jorel" % "commandapi-bukkit-core" % "9.7.0" % Provided,
 )
 
 resolvers ++= Seq(
-  "papermc-repo" at "https://repo.papermc.io/repository/maven-public/"
+  "papermc-repo" at "https://repo.papermc.io/repository/maven-public/",
+  "codemc" at "https://repo.codemc.org/repository/maven-public/",
 )
 // See https://www.scala-sbt.org/1.x/docs/Using-Sonatype.html for instructions on how to publish to Sonatype.
