@@ -85,13 +85,13 @@ class PowerToolsPlugin extends JavaPlugin {
       )
       .withSubcommand(
         new CommandAPICommand("accept")
-          .withArguments(new StringArgument("requester"))
+          .withArguments(new StringArgument("target"))
           .executesPlayer((player: Player, args: CommandArguments) => {
-            val requester = args.get("requester").asInstanceOf[String]
+            val target = args.get("target").asInstanceOf[String]
             if (!player.hasPermission("whitelist.manage")) {
               player.sendMessage(ChatFormatting.apply("<#F93822>Error&7: You do not have permission to manage whitelist requests."))
             } else {
-              player.sendMessage(ChatFormatting.apply(whitelistListener.acceptRequest(player, requester)))
+              player.sendMessage(ChatFormatting.apply(whitelistListener.acceptRequest(player, target)))
             }
             1
           })
