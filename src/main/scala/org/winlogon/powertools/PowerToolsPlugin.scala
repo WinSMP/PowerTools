@@ -1,12 +1,15 @@
 package org.winlogon.powertools
 
 import dev.jorel.commandapi.CommandAPICommand
-import dev.jorel.commandapi.arguments.StringArgument
+import dev.jorel.commandapi.arguments.{StringArgument, IntegerArgument}
 import dev.jorel.commandapi.executors.{CommandArguments, CommandExecutor}
 import org.bukkit.command.CommandSender
-import org.bukkit.Bukkit
+import org.bukkit.{Bukkit, Material}
+import org.bukkit.enchantments.Enchantment
 import org.bukkit.entity.Player
+import org.bukkit.inventory.ItemStack
 import org.bukkit.plugin.java.JavaPlugin
+import org.bukkit.inventory.meta.EnchantmentStorageMeta
 
 class PowerToolsPlugin extends JavaPlugin {
   private val whitelistListener = new WhitelistListener()
@@ -110,8 +113,118 @@ class PowerToolsPlugin extends JavaPlugin {
           })
       )
       .register()
+
+    // Unenchant Command
+    new CommandAPICommand("splitunenchants")
+      .withPermission("powertools.splitunenchants")
+      .withAliases(Seq("split", "unenchant"): _*)
+      .executesPlayer((player: Player, args: CommandArguments) => {
+        executeSplitUnenchant(player)
+        1
+      })
+      .register()
+
+    // Unsafe enchant command
+    new CommandAPICommand("unsafeenchants")
+      .withPermission("powertools.unsafeenchants")
+      .withArguments(new StringArgument("enchantment"), new IntegerArgument("level"))
+      .executesPlayer((player: Player, args: CommandArguments) => {
+        executeUnsafeEnchant(player, args)
+        1
+      })
+      .register()
   }
 
+  private def executeUnsafeEnchant(player: Player, args: CommandArguments): Unit = {
+    if (!getConfig.getBoolean("unsafe-enchants.enabled", true)) {
+      player.sendMessage(ChatFormatting.apply("<#F93822>Error&7: Unsafe enchantments are disabled in config."))
+      return
+    }
+    
+    val enchantName = args.get("enchantment").asInstanceOf[String]
+    val level = args.get("level").asInstanceOf[Integer].intValue()
+    
+    // Get the item in the player's main hand.
+    val item = player.getInventory.getItemInMainHand
+    if (item == null || item.getType == Material.AIR) {
+      player.sendMessage(ChatFormatting.apply("<#F93822>Error&7: You must be holding an item to enchant."))
+      return
+    }
+    
+    // Try to fetch the Enchantment object using the provided name.
+    val enchantment = Enchantment.getByName(enchantName.toUpperCase)
+    if (enchantment == null) {
+      player.sendMessage(ChatFormatting.apply(s"<#F93822>Error&7: Invalid enchantment '$enchantName'."))
+      return
+    }
+    
+    // Apply the enchantment unsafely.
+    item.addUnsafeEnchantment(enchantment, level)
+    player.updateInventory()
+    player.sendMessage(ChatFormatting.apply(s"&7Applied unsafe enchantment &3$enchantName &7at level &3$level &7to your item."))
+  }
+
+  private def executeSplitUnenchant(player: Player): Unit = {
+    val inventory = player.getInventory
+    val itemInHand = inventory.getItemInMainHand
+
+    if (itemInHand == null) {
+      player.sendMessage(ChatFormatting.apply("<#F93822>Error&7: You must be holding an item."))
+      return
+    }
+
+    // Get current enchantments on the item
+    val enchantments = itemInHand.getEnchantments
+    if (enchantments.isEmpty) {
+      player.sendMessage(ChatFormatting.apply("<#F93822>Error&7: This item has no enchantments to split."))
+      return
+    }
+
+    // Calculate cost (base price from config multiplied by number of enchantments)
+    val basePrice = getConfig.getDouble("unenchant.basePrice", 5.0)
+    val enchantCount = enchantments.size
+    // For simplicity, we assume cost is an integer value.
+    val cost = (basePrice * enchantCount).toInt
+
+    if (player.getTotalExperience < cost) {
+      player.sendMessage(ChatFormatting.apply(s"<#F93822>Error&7: You need at least $cost XP to split these enchantments."))
+      return
+    }
+
+    // Deduct the XP cost.
+    player.giveExp(-cost)
+
+    // Remove each enchantment from the held item and create a corresponding book.
+    // Note: We must work on a copy of the enchantments because we’ll be removing them.
+    val enchantmentsToSplit = enchantments.keySet.toArray(new Array[Enchantment](enchantCount))
+    val meta = itemInHand.getItemMeta
+    // Remove all enchantments from the item.
+    enchantmentsToSplit.foreach { ench =>
+      meta.removeEnchant(ench)
+    }
+    itemInHand.setItemMeta(meta)
+
+    // For each enchantment, create an enchanted book.
+    enchantmentsToSplit.foreach { ench =>
+      val level = enchantments.get(ench)
+      val book = new ItemStack(Material.ENCHANTED_BOOK)
+      val bookMeta = book.getItemMeta.asInstanceOf[EnchantmentStorageMeta]
+      // The third parameter "true" allows unsafe enchantments if needed.
+      bookMeta.addStoredEnchant(ench, level, true)
+      book.setItemMeta(bookMeta)
+      // Try to add the book to the player's inventory; if full, drop at player's location.
+      if (inventory.firstEmpty() == -1) {
+        player.getWorld.dropItemNaturally(player.getLocation, book)
+      } else {
+        inventory.addItem(book)
+      }
+    }
+
+    player.updateInventory()
+    player.sendMessage(ChatFormatting.apply(s"&7Successfully split ${enchantCount} enchantment(s) for $cost XP."))
+  }
+
+  // Other command methods like executeBroadcast, executeHat, etc.
   private def executeBroadcast(sender: CommandSender, message: String): Unit = {
     val formattedMessage = ChatFormatting.apply(s"<dark_gray>[<dark_aqua>Broadcast<dark_gray>]<reset> &7${message}")
     Bukkit.getOnlinePlayers.forEach(_.sendMessage(formattedMessage))
@@ -121,7 +234,7 @@ class PowerToolsPlugin extends JavaPlugin {
     val playerInventory = player.getInventory
     val itemInHand = playerInventory.getItemInMainHand
     val helmetItem = playerInventory.getHelmet
-    
+
     playerInventory.setHelmet(itemInHand)
     if (helmetItem == null) {
       playerInventory.setItemInMainHand(null)
@@ -129,7 +242,7 @@ class PowerToolsPlugin extends JavaPlugin {
       playerInventory.setItemInMainHand(helmetItem)
       player.sendMessage(ChatFormatting.apply("&7Swapping items..."))
     }
-    
+
     player.updateInventory()
     player.sendMessage(ChatFormatting.apply("&7Your held item is now &3on your head!"))
   }
