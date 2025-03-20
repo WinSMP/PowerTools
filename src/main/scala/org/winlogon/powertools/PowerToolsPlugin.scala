@@ -126,7 +126,7 @@ class PowerToolsPlugin extends JavaPlugin {
 
     // Unsafe enchant command
     new CommandAPICommand("unsafeenchants")
-      .withPermission("powertools.unsafeenchants")
+      .withPermission("powertools.unsafe-enchants")
       .withArguments(new StringArgument("enchantment"), new IntegerArgument("level"))
       .executesPlayer((player: Player, args: CommandArguments) => {
         executeUnsafeEnchant(player, args)

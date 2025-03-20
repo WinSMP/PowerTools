@@ -2,8 +2,8 @@ import Dependencies._
 
 val mainScalaClass = "org.winlogon.powertools.PowerToolsPlugin"
 
-ThisBuild / scalaVersion     := "3.3.4"
-ThisBuild / version          := "0.2.0-SNAPSHOT"
+ThisBuild / scalaVersion     := "3.3.5"
+ThisBuild / version          := "0.3.0-SNAPSHOT"
 ThisBuild / organization     := "org.winlogon"
 ThisBuild / organizationName := "winlogon"
 Compile / mainClass := Some(mainScalaClass)
@@ -13,7 +13,7 @@ ThisBuild / githubWorkflowJavaVersions := Seq(JavaSpec.temurin("21"))
 ThisBuild / publishTo := None
 publish / skip := true
 
-crossScalaVersions := Seq("3.3.4")
+crossScalaVersions := Seq("3.3.5")
 
 lazy val root = (project in file("."))
   .settings(
