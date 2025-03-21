@@ -32,6 +32,7 @@ assembly / mainClass := Some(mainScalaClass)
 libraryDependencies ++= Seq(
   "io.papermc.paper" % "paper-api" % "1.21.4-R0.1-SNAPSHOT" % Provided,
   "net.kyori" % "adventure-text-minimessage" % "4.18.0" % Provided,
+  "net.kyori" % "adventure-platform-api" % "4.3.4" % Provided,
   "dev.jorel" % "commandapi-bukkit-core" % "9.7.0" % Provided,
 )
 

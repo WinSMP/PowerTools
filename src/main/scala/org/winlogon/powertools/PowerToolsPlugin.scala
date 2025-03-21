@@ -1,7 +1,7 @@
 package org.winlogon.powertools
 
 import dev.jorel.commandapi.CommandAPICommand
-import dev.jorel.commandapi.arguments.{StringArgument, IntegerArgument}
+import dev.jorel.commandapi.arguments.{IntegerArgument, PlayerArgument, GreedyStringArgument, StringArgument}
 import dev.jorel.commandapi.executors.{CommandArguments, CommandExecutor}
 import org.bukkit.command.CommandSender
 import org.bukkit.{Bukkit, Material}
@@ -10,6 +10,8 @@ import org.bukkit.entity.Player
 import org.bukkit.inventory.ItemStack
 import org.bukkit.plugin.java.JavaPlugin
 import org.bukkit.inventory.meta.EnchantmentStorageMeta
+import net.kyori.adventure.audience.Audience
+import io.papermc.paper.event.player.AsyncChatEvent
 
 class PowerToolsPlugin extends JavaPlugin {
   private val whitelistListener = new WhitelistListener()
@@ -22,8 +24,9 @@ class PowerToolsPlugin extends JavaPlugin {
   private def registerCommands(): Unit = {
     // Broadcast Command
     new CommandAPICommand("broadcast")
+      .withAliases("bc")
       .withPermission("powertools.broadcast")
-      .withArguments(new StringArgument("message"))
+      .withArguments(new GreedyStringArgument("message"))
       .executes((sender: CommandSender, args: CommandArguments) => {
         val message = args.get("message").asInstanceOf[String]
         executeBroadcast(sender, message)
@@ -43,9 +46,9 @@ class PowerToolsPlugin extends JavaPlugin {
     // Invsee Command
     new CommandAPICommand("invsee")
       .withPermission("powertools.invsee")
-      .withArguments(new StringArgument("target"))
+      .withArguments(new PlayerArgument("target"))
       .executesPlayer((player: Player, args: CommandArguments) => {
-        val target = args.get("target").asInstanceOf[String]
+        val target = args.get("target").asInstanceOf[Player].getName
         executeInvsee(player, target)
         1
       })
@@ -54,18 +57,48 @@ class PowerToolsPlugin extends JavaPlugin {
     // Smite Command
     new CommandAPICommand("smite")
       .withPermission("powertools.smite")
-      .withArguments(new StringArgument("target"))
+      .withArguments(new PlayerArgument("target"))
       .executes((sender: CommandSender, args: CommandArguments) => {
-        val target = args.get("target").asInstanceOf[String]
+        val target = args.get("target").asInstanceOf[Player].getName
         executeSmite(sender, target)
         1
       })
       .register()
 
+    // Sudo command
+    new CommandAPICommand("sudo")
+      .withAliases("doas")
+      .withPermission("powertools.wheel")
+      .withArguments(new StringArgument("target"))
+      .withSubcommand(
+          new CommandAPICommand("command")
+            .withAliases("cmd")
+            .withArguments(new PlayerArgument("target"))
+            .withArguments(new GreedyStringArgument("command"))
+            .executes((sender: CommandSender, args: CommandArguments) => {
+              val target = args.get("target").asInstanceOf[Player]
+              val command = args.get("command").asInstanceOf[String]
+              executeSudoCommand(sender, target, command)
+              1
+            })
+        )
+      .withSubcommand(
+          new CommandAPICommand("chat")
+            .withArguments(new PlayerArgument("target"))
+            .withArguments(new GreedyStringArgument("message"))
+            .executes((sender: CommandSender, args: CommandArguments) => {
+              val target = args.get("target").asInstanceOf[Player]
+              val message = args.get("message").asInstanceOf[String]
+              executeSudoChat(sender, target, message)
+              1
+            })
+        )
+      .register()
+
     // Whitelist Request Command
     new CommandAPICommand("whitelistrequest")
       .withPermission("powertools.whitelist")
-      .withAliases(Seq("wlreq", "wlrequest"): _*)
+      .withAliases("wlreq", "wlrequest")
       .withSubcommand(
         new CommandAPICommand("request")
           .withArguments(new StringArgument("player"))
@@ -228,6 +261,33 @@ class PowerToolsPlugin extends JavaPlugin {
   private def executeBroadcast(sender: CommandSender, message: String): Unit = {
     val formattedMessage = ChatFormatting.apply(s"<dark_gray>[<dark_aqua>Broadcast<dark_gray>]<reset> &7${message}")
     Bukkit.getOnlinePlayers.forEach(_.sendMessage(formattedMessage))
+  }
+
+  private def executeSudoCommand(sender: CommandSender, target: Player, command: String): Unit = {
+    val targetPlayer = target
+    if (targetPlayer == null || !targetPlayer.isOnline) {
+      sender.sendMessage(ChatFormatting.apply("<#F93822>Error&7: Player not found or offline."))
+    } else {
+      targetPlayer.getScheduler().execute(this, () => {
+        // why does this fail when user doesn't have * permissions
+        // when running non-minecraft commands but commandapi-registered commands
+        val result = targetPlayer.performCommand(command)
+        if (!result) {
+          sender.sendMessage("command execution failed")
+        }
+      }, null, 0L)
+    }
+  }
+
+  private def executeSudoChat(sender: CommandSender, target: Player, message: String): Unit = {
+    val targetPlayer = target
+    if (targetPlayer == null || !targetPlayer.isOnline) {
+      sender.sendMessage(ChatFormatting.apply("<#F93822>Error&7: Player not found or offline."))
+    } else {
+      val viewers = new java.util.HashSet[Audience](Bukkit.getOnlinePlayers())
+      val event = new AsyncChatEvent(true, targetPlayer, viewers, null, ChatFormatting.apply(message), null, null)
+      event.callEvent()
+    }
   }
 
   private def executeHat(player: Player): Unit = {
