@@ -12,6 +12,8 @@ import org.bukkit.plugin.java.JavaPlugin
 import org.bukkit.inventory.meta.EnchantmentStorageMeta
 import net.kyori.adventure.audience.Audience
 import io.papermc.paper.event.player.AsyncChatEvent
+import io.papermc.paper.chat.ChatRenderer
+import net.kyori.adventure.text.Component
 
 class PowerToolsPlugin extends JavaPlugin {
   private val whitelistListener = new WhitelistListener()
@@ -264,29 +266,40 @@ class PowerToolsPlugin extends JavaPlugin {
   }
 
   private def executeSudoCommand(sender: CommandSender, target: Player, command: String): Unit = {
-    val targetPlayer = target
-    if (targetPlayer == null || !targetPlayer.isOnline) {
+    if (target == null || !target.isOnline) {
       sender.sendMessage(ChatFormatting.apply("<#F93822>Error&7: Player not found or offline."))
-    } else {
-      targetPlayer.getScheduler().execute(this, () => {
-        // why does this fail when user doesn't have * permissions
-        // when running non-minecraft commands but commandapi-registered commands
-        val result = targetPlayer.performCommand(command)
-        if (!result) {
-          sender.sendMessage("command execution failed")
-        }
-      }, null, 0L)
+      return
     }
+
+    val scheduler = target.getScheduler
+    scheduler.execute(this, () => {
+      // TODO: check if player actually has permissions to run this command
+      // and use a better way to do this in the future (Player#performCommand doesn't work)
+      target.chat(s"/${command}")
+    }, null, 0L)
   }
 
   private def executeSudoChat(sender: CommandSender, target: Player, message: String): Unit = {
-    val targetPlayer = target
-    if (targetPlayer == null || !targetPlayer.isOnline) {
+    if (target == null || !target.isOnline) {
       sender.sendMessage(ChatFormatting.apply("<#F93822>Error&7: Player not found or offline."))
-    } else {
-      val viewers = new java.util.HashSet[Audience](Bukkit.getOnlinePlayers())
-      val event = new AsyncChatEvent(true, targetPlayer, viewers, null, ChatFormatting.apply(message), null, null)
-      event.callEvent()
+      return
+    }
+
+    val players = Bukkit.getOnlinePlayers()
+    val viewers = new java.util.HashSet[Audience](players)
+    val userMsg = ChatFormatting.apply(message)
+    val event = new AsyncChatEvent(false, target, viewers, ChatRenderer.defaultRenderer(), userMsg, userMsg, null)
+
+    val isEventCalled = event.callEvent()
+
+    if (isEventCalled && !event.isCancelled) {
+      val renderer = event.renderer()
+      val senderComponent = event.getPlayer.displayName()
+      val renderedMessage = renderer.render(event.getPlayer, senderComponent, event.message(), Audience.audience(players))
+      
+      event.viewers().forEach { audience =>
+        audience.sendMessage(renderedMessage)
+      }
     }
   }
 
