@@ -201,26 +201,29 @@ class PowerToolsPlugin extends JavaPlugin {
       .register()
 
 
-    new CommandAPICommand("heal")
-      .withAliases("h")
-      .withPermission("heal.admin")
-      .withArguments(new PlayerArgument("player").setOptional(true))
-      .executes((player: Player, args: CommandArguments) -> {
-        var target = args.get("player").asInstanceOf[Player];
-
-        if (target == null) {
-          if (sender instanceof Player) {
-            target = sender.asInstanceOf[Player];
-          } else {
-            sender.sendMessage("§cYou must specify a player when using this command from console.");
-            return;
+      new CommandAPICommand("heal")
+        .withPermission("heal.admin")
+        .withAliases("h")
+        .withArguments(new PlayerArgument("player").setOptional(true))
+        .executes((sender: CommandSender, args: CommandArguments) => {
+          val maybeTarget = Option(args.get("player").asInstanceOf[Player]).orElse {
+            if (sender.isInstanceOf[Player])
+              Some(sender.asInstanceOf[Player])
+            else {
+              sender.sendMessage("§cYou must specify a player when using this command from console.")
+              None
+            }
           }
-        }
-
-        healPlayer(target, sender);
-        1
-      })
-      .register();
+          
+          maybeTarget match {
+            case Some(target) =>
+              healPlayer(target, sender)
+              1
+            case None =>
+              0
+          }
+        })
+        .register()
   }
 
   private def executeUnsafeEnchant(player: Player, args: CommandArguments): Unit = {
@@ -401,7 +404,7 @@ class PowerToolsPlugin extends JavaPlugin {
     player.setSaturation(20f)
     
     if (config.heal.removeEffects) {
-      player.getActivePotionEffects().forEach(player.removePotionEffect(_.getType()))
+      player.getActivePotionEffects().forEach(effect => player.removePotionEffect(effect.getType()))
     }
     
     if (player.equals(sender)) {
