@@ -1,8 +1,9 @@
 import Dependencies._
 
-val mainScalaClass = "org.winlogon.powertools.PowerToolsPlugin"
+lazy val mainScalaClass = "org.winlogon.powertools.PowerToolsPlugin"
+lazy val scalaVer = "3.3.5"
 
-ThisBuild / scalaVersion     := "3.3.5"
+ThisBuild / scalaVersion     := scalaVer
 ThisBuild / version          := "0.3.0-SNAPSHOT"
 ThisBuild / organization     := "org.winlogon"
 ThisBuild / organizationName := "winlogon"
@@ -13,7 +14,7 @@ ThisBuild / githubWorkflowJavaVersions := Seq(JavaSpec.temurin("21"))
 ThisBuild / publishTo := None
 publish / skip := true
 
-crossScalaVersions := Seq("3.3.5")
+crossScalaVersions := Seq(scalaVer)
 
 lazy val root = (project in file("."))
   .settings(
@@ -40,4 +41,3 @@ resolvers ++= Seq(
   "papermc-repo" at "https://repo.papermc.io/repository/maven-public/",
   "codemc" at "https://repo.codemc.org/repository/maven-public/",
 )
-// See https://www.scala-sbt.org/1.x/docs/Using-Sonatype.html for instructions on how to publish to Sonatype.

@@ -3,25 +3,55 @@ package org.winlogon.powertools
 import dev.jorel.commandapi.CommandAPICommand
 import dev.jorel.commandapi.arguments.{IntegerArgument, PlayerArgument, GreedyStringArgument, StringArgument}
 import dev.jorel.commandapi.executors.{CommandArguments, CommandExecutor}
+import org.bukkit.attribute.Attribute
 import org.bukkit.command.CommandSender
-import org.bukkit.{Bukkit, Material}
 import org.bukkit.enchantments.Enchantment
 import org.bukkit.entity.Player
 import org.bukkit.inventory.ItemStack
-import org.bukkit.plugin.java.JavaPlugin
 import org.bukkit.inventory.meta.EnchantmentStorageMeta
+import org.bukkit.plugin.java.JavaPlugin
+import org.bukkit.{Bukkit, Material}
 import net.kyori.adventure.audience.Audience
 import io.papermc.paper.event.player.AsyncChatEvent
 import io.papermc.paper.chat.ChatRenderer
 import net.kyori.adventure.text.Component
 
+case class UnenchantConfig(basePrice: Double)
+case class UnsafeEnchantConfig(enabled: Boolean)
+case class HealConfig(removeEffects: Boolean, showWhoHealed: Boolean)
+case class Configuration(
+  heal: HealConfig,
+  unenchant: UnenchantConfig,
+  unsafeEnchants: UnsafeEnchantConfig
+)
+
 class PowerToolsPlugin extends JavaPlugin {
   private val whitelistListener = new WhitelistListener()
+  private var config: Configuration = _
 
   override def onEnable(): Unit = {
+    config = loadConfig()
     registerCommands()
     getServer.getPluginManager.registerEvents(whitelistListener, this)
   }
+
+   private def loadConfig(): Configuration = {
+     saveDefaultConfig()
+     reloadConfig()
+
+     val yamlConfig = getConfig()
+
+     val removeEffects = yamlConfig.getBoolean("heal.remove-effects", true)
+     val showWhoHealed = yamlConfig.getBoolean("heal.show-who-healed", false)
+     val unenchantBasePrice = yamlConfig.getDouble("unenchant.base-price", 5.0)
+     val unsafeEnchantsEnabled = yamlConfig.getBoolean("unsafe-enchants.enabled", true)
+
+     Configuration(
+       HealConfig(removeEffects, showWhoHealed),
+       UnenchantConfig(unenchantBasePrice),
+       UnsafeEnchantConfig(unsafeEnchantsEnabled)
+     )
+   }
 
   private def registerCommands(): Unit = {
     // Broadcast Command
@@ -175,12 +205,12 @@ class PowerToolsPlugin extends JavaPlugin {
       .withAliases("h")
       .withPermission("heal.admin")
       .withArguments(new PlayerArgument("player").setOptional(true))
-      .executes((sender, args) -> {
+      .executes((player: Player, args: CommandArguments) -> {
         var target = args.get("player").asInstanceOf[Player];
 
         if (target == null) {
           if (sender instanceof Player) {
-            target = (Player) sender;
+            target = sender.asInstanceOf[Player];
           } else {
             sender.sendMessage("§cYou must specify a player when using this command from console.");
             return;
@@ -194,7 +224,7 @@ class PowerToolsPlugin extends JavaPlugin {
   }
 
   private def executeUnsafeEnchant(player: Player, args: CommandArguments): Unit = {
-    if (!getConfig.getBoolean("unsafe-enchants.enabled", true)) {
+    if (!config.unsafeEnchants.enabled) {
       player.sendMessage(ChatFormatting.apply("<#F93822>Error&7: Unsafe enchantments are disabled in config."))
       return
     }
@@ -231,17 +261,14 @@ class PowerToolsPlugin extends JavaPlugin {
       return
     }
 
-    // Get current enchantments on the item
     val enchantments = itemInHand.getEnchantments
     if (enchantments.isEmpty) {
       player.sendMessage(ChatFormatting.apply("<#F93822>Error&7: This item has no enchantments to split."))
       return
     }
 
-    // Calculate cost (base price from config multiplied by number of enchantments)
-    val basePrice = getConfig.getDouble("unenchant.basePrice", 5.0)
+    val basePrice = config.unenchant.basePrice
     val enchantCount = enchantments.size
-    // For simplicity, we assume cost is an integer value.
     val cost = (basePrice * enchantCount).toInt
 
     if (player.getTotalExperience < cost) {
@@ -249,27 +276,27 @@ class PowerToolsPlugin extends JavaPlugin {
       return
     }
 
-    // Deduct the XP cost.
     player.giveExp(-cost)
 
     // Remove each enchantment from the held item and create a corresponding book.
     // Note: We must work on a copy of the enchantments because we’ll be removing them.
     val enchantmentsToSplit = enchantments.keySet.toArray(new Array[Enchantment](enchantCount))
     val meta = itemInHand.getItemMeta
-    // Remove all enchantments from the item.
+
     enchantmentsToSplit.foreach { ench =>
       meta.removeEnchant(ench)
     }
     itemInHand.setItemMeta(meta)
 
-    // For each enchantment, create an enchanted book.
+    // for each enchantment, create an enchanted book.
     enchantmentsToSplit.foreach { ench =>
       val level = enchantments.get(ench)
       val book = new ItemStack(Material.ENCHANTED_BOOK)
       val bookMeta = book.getItemMeta.asInstanceOf[EnchantmentStorageMeta]
-      // The third parameter "true" allows unsafe enchantments if needed.
+
       bookMeta.addStoredEnchant(ench, level, true)
       book.setItemMeta(bookMeta)
+
       // Try to add the book to the player's inventory; if full, drop at player's location.
       if (inventory.firstEmpty() == -1) {
         player.getWorld.dropItemNaturally(player.getLocation, book)
@@ -373,7 +400,7 @@ class PowerToolsPlugin extends JavaPlugin {
     player.setFoodLevel(20)
     player.setSaturation(20f)
     
-    if (removeEffects) {
+    if (config.heal.removeEffects) {
       player.getActivePotionEffects().forEach(player.removePotionEffect(_.getType()))
     }
     
@@ -381,7 +408,7 @@ class PowerToolsPlugin extends JavaPlugin {
         sender.sendMessage(genericHealMessage)
     } else {
       sender.sendMessage(s"§7${player.getName()}§3 has been healed.")
-      val messageString = if (showWhoHealed) {
+      val messageString = if (config.heal.showWhoHealed) {
         s"§7You have been healed by §3${sender.getName()}."
       } else {
         genericHealMessage
