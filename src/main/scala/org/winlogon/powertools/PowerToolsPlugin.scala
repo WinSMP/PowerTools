@@ -152,7 +152,7 @@ class PowerToolsPlugin extends JavaPlugin {
     // Unenchant Command
     new CommandAPICommand("splitunenchants")
       .withPermission("powertools.splitunenchants")
-      .withAliases(Seq("split", "unenchant"): _*)
+      .withAliases("split", "unenchant")
       .executesPlayer((player: Player, args: CommandArguments) => {
         executeSplitUnenchant(player)
         1
@@ -162,6 +162,7 @@ class PowerToolsPlugin extends JavaPlugin {
     // Unsafe enchant command
     new CommandAPICommand("unsafeenchants")
       .withPermission("powertools.unsafe-enchants")
+      .withAliases("ue")
       .withArguments(new StringArgument("enchantment"), new IntegerArgument("level"))
       .executesPlayer((player: Player, args: CommandArguments) => {
         executeUnsafeEnchant(player, args)
@@ -225,7 +226,7 @@ class PowerToolsPlugin extends JavaPlugin {
     val inventory = player.getInventory
     val itemInHand = inventory.getItemInMainHand
 
-    if (itemInHand == null) {
+    if (itemInHand == null || itemInHand == Material.AIR) {
       player.sendMessage(ChatFormatting.apply("<#F93822>Error&7: You must be holding an item."))
       return
     }
