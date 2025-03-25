@@ -168,6 +168,28 @@ class PowerToolsPlugin extends JavaPlugin {
         1
       })
       .register()
+
+
+    new CommandAPICommand("heal")
+      .withAliases("h")
+      .withPermission("heal.admin")
+      .withArguments(new PlayerArgument("player").setOptional(true))
+      .executes((sender, args) -> {
+        var target = args.get("player").asInstanceOf[Player];
+
+        if (target == null) {
+          if (sender instanceof Player) {
+            target = (Player) sender;
+          } else {
+            sender.sendMessage("§cYou must specify a player when using this command from console.");
+            return;
+          }
+        }
+
+        healPlayer(target, sender);
+        1
+      })
+      .register();
   }
 
   private def executeUnsafeEnchant(player: Player, args: CommandArguments): Unit = {
@@ -339,5 +361,31 @@ class PowerToolsPlugin extends JavaPlugin {
     target.getWorld.strikeLightning(target.getLocation)
     sender.sendMessage(ChatFormatting.apply(s"&7You have smitten &3${target.getName}!"))
     target.sendMessage(ChatFormatting.apply("&7You have been smitten by <bold>&3a mighty force!"))
+  }
+
+  private def healPlayer(player: Player, sender: CommandSender): Unit = {
+    val maxHealth = player.getAttribute(Attribute.MAX_HEALTH)
+    val genericHealMessage = s"§7You have been §3healed."
+    if (maxHealth != null) {
+      player.setHealth(maxHealth.getValue())
+    }
+    player.setFoodLevel(20)
+    player.setSaturation(20f)
+    
+    if (removeEffects) {
+      player.getActivePotionEffects().forEach(player.removePotionEffect(_.getType()))
+    }
+    
+    if (player.equals(sender)) {
+        sender.sendMessage(genericHealMessage)
+    } else {
+      sender.sendMessage(s"§7${player.getName()}§3 has been healed.")
+      val messageString = if (showWhoHealed) {
+        s"§7You have been healed by §3${sender.getName()}."
+      } else {
+        genericHealMessage
+      }
+      player.sendMessage(messageString)
+    }
   }
 }
