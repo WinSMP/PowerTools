@@ -19,7 +19,7 @@ permissions:
     default: op
   powertools.hat:
     default: true
-  powertools.splitunenchants:
+  powertools.splitenchants:
     default: true
 dependencies:
   server:

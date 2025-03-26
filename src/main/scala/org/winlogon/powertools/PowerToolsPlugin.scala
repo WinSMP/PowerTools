@@ -180,8 +180,8 @@ class PowerToolsPlugin extends JavaPlugin {
       .register()
 
     // Unenchant Command
-    new CommandAPICommand("splitunenchants")
-      .withPermission("powertools.splitunenchants")
+    new CommandAPICommand("splitenchants")
+      .withPermission("powertools.splitenchants")
       .withAliases("split", "unenchant")
       .executesPlayer((player: Player, args: CommandArguments) => {
         executeSplitUnenchant(player)
