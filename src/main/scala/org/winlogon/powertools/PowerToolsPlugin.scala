@@ -136,7 +136,7 @@ class PowerToolsPlugin extends JavaPlugin {
           .withArguments(new StringArgument("player"))
           .executesPlayer((player: Player, args: CommandArguments) => {
             val targetName = args.get("player").asInstanceOf[String]
-            player.sendMessage(ChatFormatting.apply(whitelistListener.handleRequest(player, targetName)))
+            player.sendMessage(fmt(whitelistListener.handleRequest(player, targetName)))
             1
           })
       )
@@ -144,9 +144,9 @@ class PowerToolsPlugin extends JavaPlugin {
         new CommandAPICommand("list")
           .executesPlayer((player: Player, args: CommandArguments) => {
             if (!player.hasPermission("whitelist.manage")) {
-              player.sendMessage(ChatFormatting.apply("<#F93822>Error&7: You do not have permission to view whitelist requests."))
+              sendError(player, "You do not have permission to view whitelist requests.")
             } else {
-              whitelistListener.listRequests(player).foreach(msg => player.sendMessage(ChatFormatting.apply(msg)))
+              whitelistListener.listRequests(player).foreach(msg => player.sendMessage(fmt(msg)))
             }
             1
           })
@@ -157,9 +157,9 @@ class PowerToolsPlugin extends JavaPlugin {
           .executesPlayer((player: Player, args: CommandArguments) => {
             val target = args.get("target").asInstanceOf[String]
             if (!player.hasPermission("whitelist.manage")) {
-              player.sendMessage(ChatFormatting.apply("<#F93822>Error&7: You do not have permission to manage whitelist requests."))
+              sendError(player, "You do not have permission to manage whitelist requests.")
             } else {
-              player.sendMessage(ChatFormatting.apply(whitelistListener.acceptRequest(player, target)))
+              player.sendMessage(fmt(whitelistListener.acceptRequest(player, target)))
             }
             1
           })
@@ -170,9 +170,9 @@ class PowerToolsPlugin extends JavaPlugin {
           .executesPlayer((player: Player, args: CommandArguments) => {
             val requester = args.get("requester").asInstanceOf[String]
             if (!player.hasPermission("whitelist.manage")) {
-              player.sendMessage(ChatFormatting.apply("<#F93822>Error&7: You do not have permission to manage whitelist requests."))
+              sendError(player, "You do not have permission to manage whitelist requests.")
             } else {
-              player.sendMessage(ChatFormatting.apply(whitelistListener.refuseRequest(player, requester)))
+              player.sendMessage(fmt(whitelistListener.refuseRequest(player, requester)))
             }
             1
           })
@@ -210,7 +210,7 @@ class PowerToolsPlugin extends JavaPlugin {
             if (sender.isInstanceOf[Player])
               Some(sender.asInstanceOf[Player])
             else {
-              sender.sendMessage("§cYou must specify a player when using this command from console.")
+              sendError(sender, "You must specify a player when using this command from console.")
               None
             }
           }
@@ -228,7 +228,7 @@ class PowerToolsPlugin extends JavaPlugin {
 
   private def executeUnsafeEnchant(player: Player, args: CommandArguments): Unit = {
     if (!config.unsafeEnchants.enabled) {
-      player.sendMessage(ChatFormatting.apply("<#F93822>Error&7: Unsafe enchantments are disabled in config."))
+      sendError(player, "Unsafe enchantments are disabled in config.")
       return
     }
     
@@ -238,21 +238,21 @@ class PowerToolsPlugin extends JavaPlugin {
     // Get the item in the player's main hand.
     val item = player.getInventory.getItemInMainHand
     if (item == null || item.getType == Material.AIR) {
-      player.sendMessage(ChatFormatting.apply("<#F93822>Error&7: You must be holding an item to enchant."))
+      sendError(player, "You must be holding an item to enchant.")
       return
     }
     
     // Try to fetch the Enchantment object using the provided name.
     val enchantment = Enchantment.getByName(enchantName.toUpperCase)
     if (enchantment == null) {
-      player.sendMessage(ChatFormatting.apply(s"<#F93822>Error&7: Invalid enchantment '$enchantName'."))
+      sendError(player, s"Invalid enchantment '$enchantName'.")
       return
     }
     
     // Apply the enchantment unsafely.
     item.addUnsafeEnchantment(enchantment, level)
     player.updateInventory()
-    player.sendMessage(ChatFormatting.apply(s"&7Applied unsafe enchantment &3$enchantName &7at level &3$level &7to your item."))
+    player.sendMessage(fmt(s"&8[&5UE&8] &7Applied &3$enchantName &7at level &3$level."))
   }
 
   private def executeSplitUnenchant(player: Player): Unit = {
@@ -260,13 +260,13 @@ class PowerToolsPlugin extends JavaPlugin {
     val itemInHand = inventory.getItemInMainHand
 
     if (itemInHand == null || itemInHand == Material.AIR) {
-      player.sendMessage(ChatFormatting.apply("<#F93822>Error&7: You must be holding an item."))
+      player.sendMessage(fmt("<#F93822>Error&7: You must be holding an item."))
       return
     }
 
     val enchantments = itemInHand.getEnchantments
     if (enchantments.isEmpty) {
-      player.sendMessage(ChatFormatting.apply("<#F93822>Error&7: This item has no enchantments to split."))
+      player.sendMessage(fmt("<#F93822>Error&7: This item has no enchantments to split."))
       return
     }
 
@@ -275,7 +275,7 @@ class PowerToolsPlugin extends JavaPlugin {
     val cost = (basePrice * enchantCount).toInt
 
     if (player.getTotalExperience < cost) {
-      player.sendMessage(ChatFormatting.apply(s"<#F93822>Error&7: You need at least $cost XP to split these enchantments."))
+      player.sendMessage(fmt(s"<#F93822>Error&7: You need at least $cost XP to split these enchantments."))
       return
     }
 
@@ -309,18 +309,18 @@ class PowerToolsPlugin extends JavaPlugin {
     }
 
     player.updateInventory()
-    player.sendMessage(ChatFormatting.apply(s"&7Successfully split ${enchantCount} enchantment(s) for $cost XP."))
+    player.sendMessage(fmt(s"&7Successfully split ${enchantCount} enchantment(s) for $cost XP."))
   }
 
   // Other command methods like executeBroadcast, executeHat, etc.
   private def executeBroadcast(sender: CommandSender, message: String): Unit = {
-    val formattedMessage = ChatFormatting.apply(s"<dark_gray>[<dark_aqua>Broadcast<dark_gray>]<reset> &7${message}")
+    val formattedMessage = fmt(s"<dark_gray>[<dark_aqua>Broadcast<dark_gray>]<reset> &7${message}")
     Bukkit.getOnlinePlayers.forEach(_.sendMessage(formattedMessage))
   }
 
   private def executeSudoCommand(sender: CommandSender, target: Player, command: String): Unit = {
     if (target == null || !target.isOnline) {
-      sender.sendMessage(ChatFormatting.apply("<#F93822>Error&7: Player not found or offline."))
+      sender.sendMessage(fmt("<#F93822>Error&7: Player not found or offline."))
       return
     }
 
@@ -334,13 +334,13 @@ class PowerToolsPlugin extends JavaPlugin {
 
   private def executeSudoChat(sender: CommandSender, target: Player, message: String): Unit = {
     if (target == null || !target.isOnline) {
-      sender.sendMessage(ChatFormatting.apply("<#F93822>Error&7: Player not found or offline."))
+      sender.sendMessage(fmt("<#F93822>Error&7: Player not found or offline."))
       return
     }
 
     val players = Bukkit.getOnlinePlayers()
     val viewers = new java.util.HashSet[Audience](players)
-    val userMsg = ChatFormatting.apply(message)
+    val userMsg = fmt(message)
     val event = new AsyncChatEvent(false, target, viewers, ChatRenderer.defaultRenderer(), userMsg, userMsg, null)
 
     val isEventCalled = event.callEvent()
@@ -366,17 +366,17 @@ class PowerToolsPlugin extends JavaPlugin {
       playerInventory.setItemInMainHand(null)
     } else {
       playerInventory.setItemInMainHand(helmetItem)
-      player.sendMessage(ChatFormatting.apply("&7Swapping items..."))
+      player.sendMessage(fmt("&7Swapping items..."))
     }
 
     player.updateInventory()
-    player.sendMessage(ChatFormatting.apply("&7Your held item is now &3on your head!"))
+    player.sendMessage(fmt("&7Your held item is now &3on your head!"))
   }
 
   private def executeInvsee(player: Player, targetName: String): Unit = {
     val target = Bukkit.getPlayer(targetName)
     if (target == null || !target.isOnline) {
-      player.sendMessage(ChatFormatting.apply("<#F93822>Error&7: Player not found or offline."))
+      player.sendMessage(fmt("<#F93822>Error&7: Player not found or offline."))
     } else {
       player.openInventory(target.getInventory)
     }
@@ -385,18 +385,18 @@ class PowerToolsPlugin extends JavaPlugin {
   private def executeSmite(sender: CommandSender, targetName: String): Unit = {
     val target = Bukkit.getPlayer(targetName)
     if (target == null || !target.isOnline) {
-      sender.sendMessage(ChatFormatting.apply("<#F93822>Error: &7Player not found or offline."))
+      sender.sendMessage(fmt("<#F93822>Error: &7Player not found or offline."))
       return
     }
 
     target.getWorld.strikeLightning(target.getLocation)
-    sender.sendMessage(ChatFormatting.apply(s"&7You have smitten &3${target.getName}!"))
-    target.sendMessage(ChatFormatting.apply("&7You have been smitten by <bold>&3a mighty force!"))
+    sender.sendMessage(fmt(s"&7You have smitten &3${target.getName}!"))
+    target.sendMessage(fmt("&7You have been smitten by <bold>&3a mighty force!"))
   }
 
   private def healPlayer(player: Player, sender: CommandSender): Unit = {
     val maxHealth = player.getAttribute(Attribute.MAX_HEALTH)
-    val genericHealMessage = s"§7You have been §3healed."
+    val genericHealMessage = fmt(s"&7You have been &3healed.")
     if (maxHealth != null) {
       player.setHealth(maxHealth.getValue())
     }
@@ -410,13 +410,16 @@ class PowerToolsPlugin extends JavaPlugin {
     if (player.equals(sender)) {
         sender.sendMessage(genericHealMessage)
     } else {
-      sender.sendMessage(s"§7${player.getName()}§3 has been healed.")
+      sender.sendMessage(fmt(s"&7${player.getName()}&3 has been healed."))
       val messageString = if (config.heal.showWhoHealed) {
-        s"§7You have been healed by §3${sender.getName()}."
+        fmt(s"&7You have been healed by &3${sender.getName()}.")
       } else {
         genericHealMessage
       }
       player.sendMessage(messageString)
     }
   }
+
+  private def fmt(s: String): Component = ChatFormatting.apply(s)
+  private def sendError(p: Player | CommandSender, err: String): Unit = p.sendMessage(fmt(s"<#F93822>Error&7: ${err}"))
 }
