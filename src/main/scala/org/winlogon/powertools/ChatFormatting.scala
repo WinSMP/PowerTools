@@ -21,6 +21,7 @@ object ChatFormatting {
     .resolver(StandardTags.clickEvent())
     .resolver(StandardTags.hoverEvent())
     .resolver(StandardTags.transition())
+    .resolver(StandardTags.font())
     .build()
 
   /**
