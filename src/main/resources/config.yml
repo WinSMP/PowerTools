@@ -1,0 +1,7 @@
+heal:
+  remove-effects: true
+  show-who-healed: false
+unenchant:
+  base-price: 5.0
+unsafe-enchants:
+  enabled: true
