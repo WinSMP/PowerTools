@@ -1,8 +1,9 @@
 package org.winlogon.powertools
 
 import dev.jorel.commandapi.CommandAPICommand
-import dev.jorel.commandapi.arguments.{IntegerArgument, PlayerArgument, GreedyStringArgument, StringArgument}
+import dev.jorel.commandapi.arguments.{IntegerArgument, PlayerArgument, GreedyStringArgument, StringArgument, EnchantmentArgument}
 import dev.jorel.commandapi.executors.{CommandArguments, CommandExecutor}
+
 import org.bukkit.attribute.Attribute
 import org.bukkit.command.CommandSender
 import org.bukkit.enchantments.Enchantment
@@ -11,10 +12,13 @@ import org.bukkit.inventory.ItemStack
 import org.bukkit.inventory.meta.EnchantmentStorageMeta
 import org.bukkit.plugin.java.JavaPlugin
 import org.bukkit.{Bukkit, Material}
+
 import io.papermc.paper.chat.ChatRenderer
 import io.papermc.paper.event.player.AsyncChatEvent
+
 import net.kyori.adventure.audience.Audience
 import net.kyori.adventure.text.Component
+import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer
 
 case class UnenchantConfig(basePrice: Double)
 case class UnsafeEnchantConfig(enabled: Boolean)
@@ -26,7 +30,7 @@ case class Configuration(
 )
 
 class PowerToolsPlugin extends JavaPlugin {
-  private val whitelistListener = new WhitelistListener()
+  private val whitelistListener = WhitelistListener()
   private var config: Configuration = _
 
   override def onEnable(): Unit = {
@@ -55,10 +59,10 @@ class PowerToolsPlugin extends JavaPlugin {
 
   private def registerCommands(): Unit = {
     // Broadcast Command
-    new CommandAPICommand("broadcast")
+    CommandAPICommand("broadcast")
       .withAliases("bc")
       .withPermission("powertools.broadcast")
-      .withArguments(new GreedyStringArgument("message"))
+      .withArguments(GreedyStringArgument("message"))
       .executes((sender: CommandSender, args: CommandArguments) => {
         val message = args.get("message").asInstanceOf[String]
         executeBroadcast(sender, message)
@@ -67,7 +71,7 @@ class PowerToolsPlugin extends JavaPlugin {
       .register()
 
     // Hat Command
-    new CommandAPICommand("hat")
+    CommandAPICommand("hat")
       .withPermission("powertools.hat")
       .executesPlayer((player: Player, args: CommandArguments) => {
         executeHat(player)
@@ -76,9 +80,9 @@ class PowerToolsPlugin extends JavaPlugin {
       .register()
 
     // Invsee Command
-    new CommandAPICommand("invsee")
+    CommandAPICommand("invsee")
       .withPermission("powertools.invsee")
-      .withArguments(new PlayerArgument("target"))
+      .withArguments(PlayerArgument("target"))
       .executesPlayer((player: Player, args: CommandArguments) => {
         val target = args.get("target").asInstanceOf[Player].getName
         executeInvsee(player, target)
@@ -87,9 +91,9 @@ class PowerToolsPlugin extends JavaPlugin {
       .register()
 
     // Smite Command
-    new CommandAPICommand("smite")
+    CommandAPICommand("smite")
       .withPermission("powertools.smite")
-      .withArguments(new PlayerArgument("target"))
+      .withArguments(PlayerArgument("target"))
       .executes((sender: CommandSender, args: CommandArguments) => {
         val target = args.get("target").asInstanceOf[Player].getName
         executeSmite(sender, target)
@@ -98,15 +102,15 @@ class PowerToolsPlugin extends JavaPlugin {
       .register()
 
     // Sudo command
-    new CommandAPICommand("sudo")
+    CommandAPICommand("sudo")
       .withAliases("doas")
       .withPermission("powertools.wheel")
-      .withArguments(new StringArgument("target"))
+      .withArguments(StringArgument("target"))
       .withSubcommand(
-          new CommandAPICommand("command")
+          CommandAPICommand("command")
             .withAliases("cmd")
-            .withArguments(new PlayerArgument("target"))
-            .withArguments(new GreedyStringArgument("command"))
+            .withArguments(PlayerArgument("target"))
+            .withArguments(GreedyStringArgument("command"))
             .executes((sender: CommandSender, args: CommandArguments) => {
               val target = args.get("target").asInstanceOf[Player]
               val command = args.get("command").asInstanceOf[String]
@@ -115,9 +119,9 @@ class PowerToolsPlugin extends JavaPlugin {
             })
         )
       .withSubcommand(
-          new CommandAPICommand("chat")
-            .withArguments(new PlayerArgument("target"))
-            .withArguments(new GreedyStringArgument("message"))
+          CommandAPICommand("chat")
+            .withArguments(PlayerArgument("target"))
+            .withArguments(GreedyStringArgument("message"))
             .executes((sender: CommandSender, args: CommandArguments) => {
               val target = args.get("target").asInstanceOf[Player]
               val message = args.get("message").asInstanceOf[String]
@@ -128,12 +132,12 @@ class PowerToolsPlugin extends JavaPlugin {
       .register()
 
     // Whitelist Request Command
-    new CommandAPICommand("whitelistrequest")
+    CommandAPICommand("whitelistrequest")
       .withPermission("powertools.whitelist")
       .withAliases("wlreq", "wlrequest")
       .withSubcommand(
-        new CommandAPICommand("request")
-          .withArguments(new StringArgument("player"))
+        CommandAPICommand("request")
+          .withArguments(StringArgument("player"))
           .executesPlayer((player: Player, args: CommandArguments) => {
             val targetName = args.get("player").asInstanceOf[String]
             player.sendMessage(fmt(whitelistListener.handleRequest(player, targetName)))
@@ -141,7 +145,7 @@ class PowerToolsPlugin extends JavaPlugin {
           })
       )
       .withSubcommand(
-        new CommandAPICommand("list")
+        CommandAPICommand("list")
           .withPermission("whitelist.manage")
           .executesPlayer((player: Player, args: CommandArguments) => {
             whitelistListener.listRequests(player).foreach(msg => player.sendMessage(fmt(msg)))
@@ -149,9 +153,9 @@ class PowerToolsPlugin extends JavaPlugin {
           })
       )
       .withSubcommand(
-        new CommandAPICommand("accept")
+        CommandAPICommand("accept")
           .withPermission("whitelist.manage")
-          .withArguments(new StringArgument("target"))
+          .withArguments(StringArgument("target"))
           .executesPlayer((player: Player, args: CommandArguments) => {
             val target = args.get("target").asInstanceOf[String]
             player.sendMessage(fmt(whitelistListener.acceptRequest(player, target)))
@@ -159,9 +163,9 @@ class PowerToolsPlugin extends JavaPlugin {
           })
       )
       .withSubcommand(
-        new CommandAPICommand("refuse")
+        CommandAPICommand("refuse")
           .withPermission("whitelist.manage")
-          .withArguments(new StringArgument("requester"))
+          .withArguments(StringArgument("requester"))
           .executesPlayer((player: Player, args: CommandArguments) => {
             val requester = args.get("requester").asInstanceOf[String]
             player.sendMessage(fmt(whitelistListener.refuseRequest(player, requester)))
@@ -171,7 +175,7 @@ class PowerToolsPlugin extends JavaPlugin {
       .register()
 
     // Unenchant Command
-    new CommandAPICommand("splitenchants")
+    CommandAPICommand("splitenchants")
       .withPermission("powertools.splitenchants")
       .withAliases("split", "unenchant")
       .executesPlayer((player: Player, args: CommandArguments) => {
@@ -181,10 +185,11 @@ class PowerToolsPlugin extends JavaPlugin {
       .register()
 
     // Unsafe enchant command
-    new CommandAPICommand("enchantunsafe")
+    // TODO: add EnchantmentArgument instead of StringArgument for the enchantment
+    CommandAPICommand("enchantunsafe")
       .withPermission("powertools.unsafe-enchants")
       .withAliases("ue", "uenchant")
-      .withArguments(new StringArgument("enchantment"), new IntegerArgument("level"))
+      .withArguments(EnchantmentArgument("enchantment"), IntegerArgument("level"))
       .executesPlayer((player: Player, args: CommandArguments) => {
         executeUnsafeEnchant(player, args)
         1
@@ -192,10 +197,10 @@ class PowerToolsPlugin extends JavaPlugin {
       .register()
 
       // Heal command
-      new CommandAPICommand("heal")
+      CommandAPICommand("heal")
         .withPermission("heal.admin")
         .withAliases("h")
-        .withArguments(new PlayerArgument("player").setOptional(true))
+        .withArguments(PlayerArgument("player").setOptional(true))
         .executes((sender: CommandSender, args: CommandArguments) => {
           val maybeTarget = Option(args.get("player").asInstanceOf[Player]).orElse {
             if (sender.isInstanceOf[Player])
@@ -222,28 +227,27 @@ class PowerToolsPlugin extends JavaPlugin {
       sendError(player, "Unsafe enchantments are disabled in config.")
       return
     }
-    
-    val enchantName = args.get("enchantment").asInstanceOf[String]
+
+    val enchantment = args.get("enchantment").asInstanceOf[Enchantment]
     val level = args.get("level").asInstanceOf[Integer].intValue()
-    
+
     // Get the item in the player's main hand
     val item = player.getInventory.getItemInMainHand
     if (item == null || item.getType == Material.AIR) {
       sendError(player, "You must be holding an item to enchant.")
       return
     }
-    
-    val enchantment = Option(Enchantment.getByName(enchantName.toUpperCase))
 
-    enchantment match {
-      case Some(enchantment) => 
-        item.addUnsafeEnchantment(enchantment, level)
-        player.updateInventory()
-        player.sendMessage(fmt(s"&8[&5UE&8] &7Applied &3$enchantName &7at level &3$level."))
-      case None =>
-        sendError(player, s"Invalid enchantment '$enchantName'.")
-        return
-    }
+    item.addUnsafeEnchantment(enchantment, level)
+    player.updateInventory()
+
+    val serializer = PlainTextComponentSerializer.plainText()
+    val displayName = serializer.serialize(enchantment.displayName(1))
+      .split(" ")
+      .dropRight(1)
+      .mkString(" ")
+
+    player.sendMessage(fmt(s"&8[&5UE&8] <gray>Applied <dark_aqua>$displayName</dark_aqua> at level <dark_green>$level</dark_green>."))
   }
 
   private def executeSplitUnenchant(player: Player): Unit = {
@@ -283,7 +287,7 @@ class PowerToolsPlugin extends JavaPlugin {
     // for each enchantment, create an enchanted book.
     enchantmentsToSplit.foreach { ench =>
       val level = enchantments.get(ench)
-      val book = new ItemStack(Material.ENCHANTED_BOOK)
+      val book = ItemStack(Material.ENCHANTED_BOOK)
       val bookMeta = book.getItemMeta.asInstanceOf[EnchantmentStorageMeta]
 
       bookMeta.addStoredEnchant(ench, level, true)
@@ -317,7 +321,7 @@ class PowerToolsPlugin extends JavaPlugin {
     scheduler.execute(this, () => {
       // TODO: check if player actually has permissions to run this command
       // and use a better way to do this in the future (Player#performCommand doesn't work)
-      target.chat(s"/${command}")
+      target.chat(s"/${command.trim()}")
     }, null, 0L)
   }
 
@@ -328,9 +332,9 @@ class PowerToolsPlugin extends JavaPlugin {
     }
 
     val players = Bukkit.getOnlinePlayers()
-    val viewers = new java.util.HashSet[Audience](players)
+    val viewers = java.util.HashSet[Audience](players)
     val userMsg = fmt(message)
-    val event = new AsyncChatEvent(false, target, viewers, ChatRenderer.defaultRenderer(), userMsg, userMsg, null)
+    val event = AsyncChatEvent(false, target, viewers, ChatRenderer.defaultRenderer(), userMsg, userMsg, null)
 
     val isEventCalled = event.callEvent()
 
@@ -409,6 +413,12 @@ class PowerToolsPlugin extends JavaPlugin {
     sender.sendMessage(genericHealMessage)
   }
 
+  /**
+    * Format a string converting legacy colors to MiniMessage
+
+    * @param s The string to format
+    * @return The formatted string, as a Component
+    */
   private def fmt(s: String): Component = ChatFormatting.apply(s)
   private def sendError(p: Player | CommandSender, err: String): Unit = p.sendMessage(fmt(s"<#F93822>Error&7: ${err}"))
 }
