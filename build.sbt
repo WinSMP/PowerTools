@@ -19,7 +19,7 @@ crossScalaVersions := Seq(scalaVer)
 lazy val root = (project in file("."))
   .settings(
     name := "powertools",
-    libraryDependencies += munit % Test
+    assembly / assemblyOption := (assembly / assemblyOption).value.withIncludeScala(false),
   )
 
 // Merge strategy for avoiding conflicts in dependencies

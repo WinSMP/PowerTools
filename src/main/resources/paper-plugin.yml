@@ -27,3 +27,7 @@ dependencies:
       load: BEFORE
       required: true
       join-classpath: true
+    ScalaLoader:
+      load: BEFORE
+      required: true
+      join-classpath: true
