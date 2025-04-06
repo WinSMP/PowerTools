@@ -21,6 +21,7 @@ import net.kyori.adventure.text.Component
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer
 
 import scala.jdk.CollectionConverters._
+import scala.util.{Try, Success, Failure}
 
 case class UnenchantConfig(basePrice: Double)
 case class UnsafeEnchantConfig(enabled: Boolean)
@@ -84,7 +85,13 @@ class PowerToolsPlugin extends JavaPlugin {
       .executesPlayer((player: Player, args: CommandArguments) => {
         val targetName = Option(args.get("target").asInstanceOf[Player]).map(_.getName)
           .getOrElse("unknown")
-        executeInvsee(player, targetName)
+
+        if (!targetName.equalsIgnoreCase(player.getName)) {
+          executeInvsee(player, targetName)
+        } else {
+          sendError(player, "You cannot invsee yourself.")
+        }
+
         successStatus
       })
       .register()
@@ -328,11 +335,19 @@ class PowerToolsPlugin extends JavaPlugin {
 
   private def executeSmite(sender: CommandSender, targetName: String): Unit = {
     Option(Bukkit.getPlayer(targetName))
-      .filter(_.isOnline)
-      .fold(sendError(sender, "Player not found or offline.")) { target =>
-        target.getWorld.strikeLightning(target.getLocation)
-        sender.sendMessage(fmt(s"&7You have smitten &3${target.getName}!"))
-        target.sendMessage(fmt("&7You have been smitten by <b>&3a mighty force!"))
+      .filter(_.isOnline) // if the player is online and is not null
+      .fold(sendError(sender, "Player not found or offline.")) { target => // or else if he is, sendError, or else
+        val result = Try {
+          target.getWorld.strikeLightning(target.getLocation)
+        }
+
+        result match {
+          case Success(_) => 
+            sender.sendMessage(fmt(s"&7You have smitten &3${target.getName}!"))
+            target.sendMessage(fmt("&7You have been smitten by <b>&3a mighty force!"))
+          case Failure(_) =>
+            sendError(sender, "Failed to smite player.")
+        }
       }
   }
 
