@@ -46,8 +46,8 @@ hs_err_pid*
 replay_pid*
 
 # ---> Metals
- # Generated Metals (Scala Language Server) files
- # Reference: https://scalameta.org/metals/
+# Generated Metals (Scala Language Server) files
+# Reference: https://scalameta.org/metals/
 .metals/
 .bloop/
 project/metals.sbt
