@@ -4,23 +4,6 @@ main: 'org.winlogon.powertools.PowerToolsPlugin'
 description: 'Fun utilities for everyone!'
 folia-supported: true
 api-version: 1.21
-permissions:
-  powertools.invsee:
-    default: op
-  powertools.smite:
-    default: op
-  powertools.broadcast:
-    default: op
-  whitelist.manage:
-    default: op
-  powertools.unsafe-enchants:
-    default: op
-  powertools.wheel:
-    default: op
-  powertools.hat:
-    default: true
-  powertools.splitenchants:
-    default: true
 dependencies:
   server:
     CommandAPI:
