@@ -8,6 +8,11 @@ import org.bukkit.entity.Player
 import net.kyori.adventure.text.Component
 
 import scala.collection.mutable
+import scala.jdk.CollectionConverters.*
+
+private val redColor   = "#CE1126"
+private val greenColor = "#1DB989"
+private val errorColor = "#F93822"
 
 case class WhitelistRequest(requester: Player, target: OfflinePlayer)
 
@@ -15,14 +20,13 @@ object WhitelistManager {
     val pendingRequests: mutable.Map[String, WhitelistRequest] = mutable.Map.empty
 }
 
-// Extension methods for CommandSender to send formatted messages.
 object Extensions {
     extension (sender: CommandSender) {
         def sendSuccessMessage(msg: String): Unit = {
-            sender.sendMessage(ChatFormatting.apply(s"<#1DB989>Success&7: $msg"))
+            sender.sendRichMessage(s"<$greenColor>Success</$greenColor><gray>: $msg</gray>")
         }
         def sendFailureMessage(msg: String): Unit = {
-            sender.sendMessage(ChatFormatting.apply(s"<#F93822>Error&7: $msg"))
+            sender.sendRichMessage(s"<$redColor>Error</$redColor><gray>: $msg</gray>")
         }
     }
 }
@@ -30,16 +34,13 @@ object Extensions {
 import Extensions.*
 
 class WhitelistListener extends Listener {
-    private val redColor   = "#CE1126"
-    private val greenColor = "#1DB989"
-    private val errorColor = "#F93822"
-
     @EventHandler
     def onPlayerJoin(event: PlayerJoinEvent): Unit = {
         val player = event.getPlayer
         if (player.hasPermission("whitelist.manage") && WhitelistManager.pendingRequests.nonEmpty) {
             player.sendSuccessMessage(
-                s"Hello! You have ${WhitelistManager.pendingRequests.size} pending whitelist request(s). Use /whitelistrequest list to review them."
+                s"Hello! You have ${WhitelistManager.pendingRequests.size} pending whitelist request(s). " +
+                "Use /whitelistrequest list to review them."
             )
         }
     }
@@ -47,30 +48,37 @@ class WhitelistListener extends Listener {
     def handleRequest(player: Player, targetName: String): Unit = {
         val target = Bukkit.getOfflinePlayer(targetName)
         WhitelistManager.pendingRequests.put(player.getName, WhitelistRequest(player, target))
-        Bukkit.getOnlinePlayers.forEach { p =>
-            if (p.hasPermission("whitelist.manage")) {
-                p.sendMessage(ChatFormatting.apply(
-                    s"<$redColor>New whitelist request:&7 ${player.getName} is requesting ${target.getName} to join. Use /whitelistrequest list to view."
-                ))
-            }
-        }
+        val msg = ChatFormatting(
+            s"<$redColor>New whitelist request:&7 ${player.getName} is requesting ${target.getName} to join. " +
+            "Use /whitelistrequest list to view."
+        )
+
+        Bukkit.getOnlinePlayers.asScala
+            .filter(_.hasPermission("whitelist.manage"))
+            .foreach(_.sendMessage(msg))
+
         player.sendSuccessMessage(s"Whitelist request for ${target.getName} sent.")
     }
 
-    def listRequests(player: Player): List[Component] = {
+    /**
+      * List pending whitelist requests
+      *
+      * @return the optional list of whitelist prompts of each player
+      */
+    def listRequests(): Option[List[Component]] = {
         if (WhitelistManager.pendingRequests.isEmpty) {
-            List(ChatFormatting.apply(s"<$errorColor>No pending whitelist requests."))
-        } else {
-            val header = ChatFormatting.apply(s"<$greenColor>Whitelist requests:")
-            val requests = WhitelistManager.pendingRequests.values.map { req =>
-                ChatFormatting.apply(
-                    s"- ${req.requester.getName} is asking for ${req.target.getName} " +
-                    s"<click:run_command:'/whitelistrequest accept ${req.target.getName}'><$greenColor>[Accept]</$greenColor></click> " +
-                    s"<click:run_command:'/whitelistrequest refuse ${req.requester.getName}'><$redColor>[Refuse]</$redColor></click>"
-                )
-            }.toList
-            header :: requests
+            return None
         }
+
+        val header = ChatFormatting.apply(s"<$greenColor>Whitelist requests:")
+        val requests = WhitelistManager.pendingRequests.values.map { req =>
+            ChatFormatting.apply(
+                s"- ${req.requester.getName} is asking for ${req.target.getName} " +
+                s"<click:run_command:'/whitelistrequest accept ${req.target.getName}'><$greenColor>[Accept]</$greenColor></click> " +
+                s"<click:run_command:'/whitelistrequest refuse ${req.requester.getName}'><$redColor>[Refuse]</$redColor></click>"
+            )
+        }.toList
+        Some(header :: requests)
     }
 
     def acceptRequest(player: Player, targetName: String): Unit = {
@@ -86,12 +94,12 @@ class WhitelistListener extends Listener {
                     req.target.setWhitelisted(true)
                 }
                 WhitelistManager.pendingRequests --= nonEmpty.map(_.requester.getName)
+
                 nonEmpty.foreach { req =>
-                    Option(Bukkit.getPlayer(req.requester.getName)) match {
-                        case Some(p) =>
-                            p.sendMessage(ChatFormatting.apply(s"&7Your whitelist request for &3${req.target.getName}&7 has been accepted."))
-                        case None => // Do nothing if the requester is offline.
-                    }
+                    Option(Bukkit.getPlayer(req.requester.getName))
+                    .foreach(_.sendMessage(
+                        ChatFormatting.apply(s"&7Your whitelist request for &3${req.target.getName}&7 has been accepted.")
+                    ))
                 }
                 player.sendSuccessMessage(s"Whitelisted $targetName and removed ${nonEmpty.size} request(s)")
         }
@@ -101,11 +109,10 @@ class WhitelistListener extends Listener {
         WhitelistManager.pendingRequests.get(requesterName) match {
             case Some(req) =>
                 WhitelistManager.pendingRequests.remove(requesterName)
-                Option(Bukkit.getPlayer(req.requester.getName)) match {
-                    case Some(p) =>
-                        p.sendMessage(ChatFormatting.apply(s"&7Your whitelist request for &3${req.target.getName}&7 has been refused."))
-                    case None => // Do nothing if the requester is offline.
-                }
+                Option(Bukkit.getPlayer(req.requester.getName))
+                .foreach(_.sendMessage(
+                    ChatFormatting.apply(s"&7Your whitelist request for &3${req.target.getName}&7 has been refused.")
+                ))
                 player.sendSuccessMessage(s"Refused whitelist request for ${req.target.getName} from ${req.requester.getName}")
             case None =>
                 player.sendFailureMessage(s"No whitelist request found for $requesterName")

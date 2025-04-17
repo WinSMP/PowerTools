@@ -8,7 +8,7 @@ import dev.jorel.commandapi.arguments.{
 import dev.jorel.commandapi.executors.{CommandArguments, CommandExecutor}
 
 import org.bukkit.attribute.Attribute
-import org.bukkit.command.CommandSender
+import org.bukkit.command.{CommandSender, ConsoleCommandSender}
 import org.bukkit.enchantments.Enchantment
 import org.bukkit.entity.Player
 import org.bukkit.inventory.ItemStack
@@ -17,13 +17,16 @@ import org.bukkit.plugin.java.JavaPlugin
 import org.bukkit.{Bukkit, Material}
 
 import io.papermc.paper.chat.ChatRenderer
+import io.papermc.paper.datacomponent.DataComponentTypes
 import io.papermc.paper.event.player.AsyncChatEvent
 
 import net.kyori.adventure.audience.Audience
 import net.kyori.adventure.text.Component
+import net.kyori.adventure.text.format.NamedTextColor
+import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer
 
-import scala.jdk.CollectionConverters._
+import scala.jdk.CollectionConverters.*
 import scala.util.{Try, Success, Failure}
 
 case class UnenchantConfig(basePrice: Double)
@@ -162,7 +165,10 @@ class PowerToolsPlugin extends JavaPlugin {
                 CommandAPICommand("list")
                     .withPermission("whitelist.manage")
                     .executesPlayer((player: Player, _: CommandArguments) => {
-                        whitelistListener.listRequests(player).foreach(player.sendMessage)
+                        whitelistListener.listRequests() match {
+                            case Some(lst) => lst.foreach(player.sendMessage)
+                            case None => player.sendRichMessage("<gray><red>No</red> requests found.</gray>")
+                        }
                         successStatus
                     })
             )
@@ -217,14 +223,8 @@ class PowerToolsPlugin extends JavaPlugin {
             .executes((sender: CommandSender, args: CommandArguments) => {
                 val maybeTarget = Option(args.get("player").asInstanceOf[Player])
                     .orElse(Option(sender).collect { case p: Player => p })
-                maybeTarget match {
-                    case Some(target) =>
-                        healPlayer(target, sender)
-                        successStatus
-                    case None =>
-                        // Error already sent in case of console
-                        0
-                }
+                maybeTarget.foreach(target => healPlayer(target, sender))
+                successStatus
             })
             .register()
     }
@@ -242,20 +242,41 @@ class PowerToolsPlugin extends JavaPlugin {
             .fold(sendError(player, "You must be holding an item to enchant.")) { item =>
                 item.addUnsafeEnchantment(enchantment, level)
                 player.updateInventory()
+
                 val displayName = PlainTextComponentSerializer.plainText()
                     .serialize(enchantment.displayName(1))
-                    .split(" ").dropRight(1).mkString(" ")
+
+                val romanNumeralRegex = """^(?=.)M{0,4}(CM|CD|D?C{0,3})(XC|XL|L?X{0,3})(IX|IV|V?I{0,3})$""".r
+
+                val finalDisplayName = {
+                    val trimmed = displayName.trim
+                    val words = trimmed.split("\\s+")
+                    if (words.nonEmpty && romanNumeralRegex.pattern.matcher(words.last).matches()) {
+                          words.dropRight(1).mkString(" ")
+                    } else {
+                        displayName
+                    }
+                }
 
                 val prefix = "&8[&5UE&8]"
                 player.sendMessage(fmt(
-                    s"$prefix <gray>Applied <dark_aqua>$displayName</dark_aqua> at level <dark_green>$level</dark_green>."
+                    s"$prefix <gray>Applied <dark_aqua>$finalDisplayName</dark_aqua> at level <dark_green>$level</dark_green>."
                 ))
             }
     }
 
     private def executeSplitUnenchant(player: Player): Unit = {
         val inventory = player.getInventory
-        Option(inventory.getItemInMainHand)
+        val itemHand = Option(inventory.getItemInMainHand)
+
+        itemHand
+            .filter(_.getType == Material.ENCHANTED_BOOK)
+            .foreach { _ =>
+                sendError(player, "The item can't be an enchanted book.")
+                return
+            }
+
+        itemHand
             .filterNot(item => item == null || item.getType == Material.AIR)
             .fold(sendError(player, "You must be holding an item.")) { itemInHand =>
                 val enchantments = itemInHand.getEnchantments
@@ -274,6 +295,7 @@ class PowerToolsPlugin extends JavaPlugin {
                 val meta = itemInHand.getItemMeta
                 enchantments.keySet.asScala.foreach(meta.removeEnchant)
                 itemInHand.setItemMeta(meta)
+                itemInHand.resetData(DataComponentTypes.REPAIR_COST)
 
                 // Create an enchanted book for each enchantment.
                 enchantments.asScala.foreach { case (ench, level) =>
@@ -281,6 +303,7 @@ class PowerToolsPlugin extends JavaPlugin {
                     val bookMeta = book.getItemMeta.asInstanceOf[EnchantmentStorageMeta]
                     bookMeta.addStoredEnchant(ench, level, true)
                     book.setItemMeta(bookMeta)
+                    // If the inventory is full, drop it at the player's position
                     if (inventory.firstEmpty() == -1)
                         player.getWorld.dropItemNaturally(player.getLocation, book)
                     else
@@ -292,8 +315,14 @@ class PowerToolsPlugin extends JavaPlugin {
     }
 
     private def executeBroadcast(sender: CommandSender, message: String): Unit = {
-        val formattedMessage = fmt(s"<dark_gray>[<dark_aqua>Broadcast<dark_gray>]<reset> &7$message")
-        Bukkit.getOnlinePlayers.forEach(_.sendMessage(formattedMessage))
+        val formattedMessage = "<dark_gray>[<dark_aqua>Broadcast<dark_gray>] <message>"
+        val messageComponent = Placeholder.component("message", Component.text(message, NamedTextColor.GRAY))
+
+        Bukkit.getOnlinePlayers.forEach(_.sendRichMessage(formattedMessage, messageComponent))
+        // Send message to console if the command was sent from console for user feedback
+        if (sender.isInstanceOf[ConsoleCommandSender]) {
+            sender.sendRichMessage(formattedMessage, messageComponent)
+        }
     }
 
     private def executeSudoCommand(sender: CommandSender, target: Player, command: String): Unit = {
@@ -321,6 +350,7 @@ class PowerToolsPlugin extends JavaPlugin {
         if (event.callEvent() && !event.isCancelled) {
             val renderer = event.renderer()
             val senderComponent = event.getPlayer.displayName()
+            // Create an audience from the players and craft a new rendered message
             val renderedMessage = renderer.render(event.getPlayer, senderComponent, event.message(), Audience.audience(players))
             event.viewers().forEach(_.sendMessage(renderedMessage))
         }
@@ -369,20 +399,35 @@ class PowerToolsPlugin extends JavaPlugin {
     }
 
     private def healPlayer(player: Player, sender: CommandSender): Unit = {
-        Option(player.getAttribute(Attribute.MAX_HEALTH)).foreach(max => player.setHealth(max.getValue()))
+        Option(player.getAttribute(Attribute.MAX_HEALTH))
+            .foreach(max => player.setHealth(max.getValue()))
         player.setFoodLevel(20)
         player.setSaturation(20f)
+
         if (config.heal.removeEffects) {
             player.getActivePotionEffects.forEach(effect => player.removePotionEffect(effect.getType))
         }
+
+        val healedMessage = "<gray>You have been <dark_aqua>healed</dark_aqua>.</gray>"
+
         if (player != sender) {
-            sender.sendMessage(fmt(s"&3${player.getName()}&7 has been healed."))
-            val healMsg = if (config.heal.showWhoHealed)
-                fmt(s"&7You have been healed by &3${sender.getName()}.")
-            else fmt(s"&7You have been healed.")
-            player.sendMessage(healMsg)
+            sender.sendRichMessage(
+              "<gray><player> has been healed.</gray>",
+              Placeholder.component("player", Component.text(player.getName(), NamedTextColor.DARK_AQUA))
+            )
+
+            val senderComponent = Component.text(sender.getName(), NamedTextColor.DARK_AQUA)
+
+            val healMsg = if (config.heal.showWhoHealed) {
+                s"<gray>You have been healed by <staff>.</gray>"
+            } else {
+                healedMessage
+            }
+
+            player.sendRichMessage(healMsg, Placeholder.component("staff", senderComponent))
+        } else {
+          sender.sendRichMessage(healedMessage)
         }
-        sender.sendMessage(fmt(s"&7You have been healed."))
     }
 
     /** Format a string converting legacy colors to MiniMessage */
