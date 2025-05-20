@@ -63,6 +63,7 @@ class PowerToolsPlugin extends JavaPlugin {
         Configuration(healCfg, unenchantCfg, unsafeCfg)
     }
 
+    // TODO: add user-facing /transfer command which is configurable
     private def registerCommands(): Unit = {
         // Helper to always return 1 as status.
         val successStatus: Int = 1
