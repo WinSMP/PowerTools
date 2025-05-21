@@ -3,7 +3,8 @@ package org.winlogon.powertools
 import dev.jorel.commandapi.CommandAPICommand
 import dev.jorel.commandapi.arguments.{
     EnchantmentArgument, GreedyStringArgument,
-    IntegerArgument, PlayerArgument, StringArgument
+    IntegerArgument, PlayerArgument, StringArgument,
+    ArgumentSuggestions
 }
 import dev.jorel.commandapi.executors.{CommandArguments, CommandExecutor}
 
@@ -32,10 +33,12 @@ import scala.util.{Try, Success, Failure}
 case class UnenchantConfig(basePrice: Double)
 case class UnsafeEnchantConfig(enabled: Boolean)
 case class HealConfig(removeEffects: Boolean, showWhoHealed: Boolean)
+case class TransferConfig(enabled: Boolean, servers: List[java.util.HashMap[String, String]])
 case class Configuration(
     heal: HealConfig,
     unenchant: UnenchantConfig,
     unsafeEnchants: UnsafeEnchantConfig,
+    transferConfig: TransferConfig // Updated to include servers
 )
 
 class PowerToolsPlugin extends JavaPlugin {
@@ -55,12 +58,22 @@ class PowerToolsPlugin extends JavaPlugin {
 
         val healCfg = HealConfig(
             removeEffects = yamlConfig.getBoolean("heal.remove-effects", true),
-            showWhoHealed  = yamlConfig.getBoolean("heal.show-who-healed", false)
+            showWhoHealed = yamlConfig.getBoolean("heal.show-who-healed", false)
         )
         val unenchantCfg = UnenchantConfig(yamlConfig.getDouble("unenchant.base-price", 5.0))
         val unsafeCfg = UnsafeEnchantConfig(yamlConfig.getBoolean("unsafe-enchants.enabled", true))
+        val transferCfg = TransferConfig(
+            enabled = yamlConfig.getBoolean("transfer.enabled", true),
+            servers = yamlConfig.getMapList("transfer.servers").asScala.map { configMap =>
+                val map = new java.util.HashMap[String, String]()
+                configMap.asScala.foreach { case (k, v) =>
+                    map.put(k.toString, v.toString)
+                }
+                map
+            }.toList
+        )
 
-        Configuration(healCfg, unenchantCfg, unsafeCfg)
+        Configuration(healCfg, unenchantCfg, unsafeCfg, transferCfg)
     }
 
     // TODO: add user-facing /transfer command which is configurable
@@ -80,7 +93,7 @@ class PowerToolsPlugin extends JavaPlugin {
             })
             .register()
 
-        // Hat Command
+        // Hat command
         CommandAPICommand("hat")
             .withPermission("powertools.hat")
             .executesPlayer((player: Player, _: CommandArguments) => {
@@ -228,8 +241,9 @@ class PowerToolsPlugin extends JavaPlugin {
                 successStatus
             })
             .register()
-    }
 
+        registerTransferCommandsIfEnabled(config.transferConfig.enabled)
+    }
     private def executeUnsafeEnchant(player: Player, args: CommandArguments): Unit = {
         if (!config.unsafeEnchants.enabled) {
             sendError(player, "Unsafe enchantments are disabled in config.")
@@ -428,6 +442,66 @@ class PowerToolsPlugin extends JavaPlugin {
             player.sendRichMessage(healMsg, Placeholder.component("staff", senderComponent))
         } else {
           sender.sendRichMessage(healedMessage)
+        }
+    }
+
+    private def registerTransferCommandsIfEnabled(transferConfigEnabled: Boolean): Unit = {
+        if (transferConfigEnabled) {
+            // For the "afklimbo" command
+CommandAPICommand("afklimbo")
+    .withPermission("powertools.transfer.afklimbo")
+    .executesPlayer((player, _) => {
+        config.transferConfig.servers.find(_.get("name") == "limbo") match {
+            case Some(limbo) =>
+                try {
+                    val host = limbo.get("host")
+                    val port = limbo.get("port").toInt
+                    player.transfer(host, port)
+                } catch {
+                    case _: NumberFormatException =>
+                        sendError(player, "Invalid port configured for limbo server.")
+                    case ex: Exception =>
+                        sendError(player, s"Error transferring: ${ex.getMessage}")
+                }
+            case None =>
+                sendError(player, "Limbo server is not configured.")
+        }
+    }: PlayerCommandExecutor) // Add type ascription here
+    .register()
+
+// For the "transfer" command
+new CommandAPICommand("transfer")
+    .withPermission("powertools.transfer")
+    .withArguments(new StringArgument("server").replaceSuggestions(ArgumentSuggestions.strings(info => {
+        config.transferConfig.servers.filter { server =>
+            val allowPlayers = server.getOrDefault("allowPlayers", "false").toBoolean
+            allowPlayers || info.sender().hasPermission("powertools.transfer.all")
+        }.map(_.get("name")).toArray
+    })))
+    .executesPlayer((player, args) => {
+        val serverName = args.get("server").asInstanceOf[String]
+        config.transferConfig.servers.find(_.get("name") == serverName) match {
+            case Some(server) =>
+                val allowPlayers = server.getOrDefault("allowPlayers", "false").toBoolean
+                if (allowPlayers || player.hasPermission("powertools.transfer.all")) {
+                    try {
+                        val host = server.get("host")
+                        val port = server.get("port").toInt
+                        player.transfer(host, port)
+                    } catch {
+                        case _: NumberFormatException =>
+                            sendError(player, "Invalid port for server. Please contact a server admin")
+                        case ex: Exception =>
+                            sendError(player, s"Transfer failed: ${ex.getMessage}")
+                    }
+                } else {
+                    sendError(player, "You don't have permission to transfer to this server.")
+                }
+            case None =>
+                sendError(player, "Server not found.")
+        }
+    }: PlayerCommandExecutor)
+    .register()
         }
     }
 
