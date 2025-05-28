@@ -29,6 +29,7 @@ import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer
 
 import scala.jdk.CollectionConverters.*
 import scala.util.{Try, Success, Failure}
+import scala.util.boundary
 
 case class UnenchantConfig(basePrice: Double)
 case class UnsafeEnchantConfig(enabled: Boolean)
@@ -38,7 +39,7 @@ case class Configuration(
     heal: HealConfig,
     unenchant: UnenchantConfig,
     unsafeEnchants: UnsafeEnchantConfig,
-    transferConfig: TransferConfig // Updated to include servers
+    transferConfig: TransferConfig
 )
 
 class PowerToolsPlugin extends JavaPlugin {
@@ -214,6 +215,22 @@ class PowerToolsPlugin extends JavaPlugin {
             .withAliases("split", "unenchant")
             .executesPlayer((player: Player, _: CommandArguments) => {
                 executeSplitUnenchant(player)
+                successStatus
+            })
+            .register()
+
+        CommandAPICommand("fly")
+            .withPermission("powertools.fly")
+            .executesPlayer((player: Player, _: CommandArguments) => {
+                val canFly = player.getAllowFlight()
+                val toggledFly = !canFly
+
+                val statusMessage = if (toggledFly) "enabled" else "disabled"
+                val color = if (toggledFly) "dark_aqua" else "red"
+
+                val playerName = s"<dark_green>${player.getName()}</dark_green>"
+                player.setAllowFlight(toggledFly)
+                player.sendRichMessage(s"<gray>Fly <$color>$statusMessage</$color> for $playerName.</gray>")
                 successStatus
             })
             .register()
@@ -446,63 +463,64 @@ class PowerToolsPlugin extends JavaPlugin {
     }
 
     private def registerTransferCommandsIfEnabled(transferConfigEnabled: Boolean): Unit = {
-        if (transferConfigEnabled) {
-            // For the "afklimbo" command
-CommandAPICommand("afklimbo")
-    .withPermission("powertools.transfer.afklimbo")
-    .executesPlayer((player, _) => {
-        config.transferConfig.servers.find(_.get("name") == "limbo") match {
-            case Some(limbo) =>
-                try {
-                    val host = limbo.get("host")
-                    val port = limbo.get("port").toInt
-                    player.transfer(host, port)
-                } catch {
-                    case _: NumberFormatException =>
-                        sendError(player, "Invalid port configured for limbo server.")
-                    case ex: Exception =>
-                        sendError(player, s"Error transferring: ${ex.getMessage}")
-                }
-            case None =>
-                sendError(player, "Limbo server is not configured.")
+        if (!transferConfigEnabled) {
+            return
         }
-    }: PlayerCommandExecutor) // Add type ascription here
-    .register()
 
-// For the "transfer" command
-new CommandAPICommand("transfer")
-    .withPermission("powertools.transfer")
-    .withArguments(new StringArgument("server").replaceSuggestions(ArgumentSuggestions.strings(info => {
-        config.transferConfig.servers.filter { server =>
-            val allowPlayers = server.getOrDefault("allowPlayers", "false").toBoolean
-            allowPlayers || info.sender().hasPermission("powertools.transfer.all")
-        }.map(_.get("name")).toArray
-    })))
-    .executesPlayer((player, args) => {
-        val serverName = args.get("server").asInstanceOf[String]
-        config.transferConfig.servers.find(_.get("name") == serverName) match {
-            case Some(server) =>
-                val allowPlayers = server.getOrDefault("allowPlayers", "false").toBoolean
-                if (allowPlayers || player.hasPermission("powertools.transfer.all")) {
-                    try {
-                        val host = server.get("host")
-                        val port = server.get("port").toInt
-                        player.transfer(host, port)
-                    } catch {
-                        case _: NumberFormatException =>
-                            sendError(player, "Invalid port for server. Please contact a server admin")
-                        case ex: Exception =>
-                            sendError(player, s"Transfer failed: ${ex.getMessage}")
-                    }
-                } else {
-                    sendError(player, "You don't have permission to transfer to this server.")
+        CommandAPICommand("afklimbo")
+            .withPermission("powertools.transfer.afklimbo")
+            .executesPlayer((player: Player, arguments: CommandArguments) => {
+                config.transferConfig.servers.find(_.get("name") == "limbo") match {
+                    case Some(limbo) =>
+                        try {
+                            val host = limbo.get("host")
+                            val port = limbo.get("port").toInt
+                            player.transfer(host, port)
+                        } catch {
+                            case _: NumberFormatException =>
+                                sendError(player, "Invalid port configured for limbo server.")
+                            case ex: Exception =>
+                                sendError(player, s"Error transferring: ${ex.getMessage}")
+                        }
+                    case None =>
+                        sendError(player, "Limbo server is not configured.")
                 }
-            case None =>
-                sendError(player, "Server not found.")
-        }
-    }: PlayerCommandExecutor)
-    .register()
-        }
+            })
+            .register()
+
+        CommandAPICommand("transfer")
+            .withPermission("powertools.transfer")
+            .withArguments(new StringArgument("server").replaceSuggestions(ArgumentSuggestions.strings(info => {
+                config.transferConfig.servers.filter { server =>
+                    val allowPlayers = server.getOrDefault("allowPlayers", "false").toBoolean
+                    allowPlayers || info.sender().hasPermission("powertools.transfer.all")
+                }.map(_.get("name")).toArray
+            })))
+            .executesPlayer((player: Player, args: CommandArguments) => {
+                val serverName = args.get("server").asInstanceOf[String]
+                config.transferConfig.servers.find(_.get("name") == serverName) match {
+                    case None =>
+                        sendError(player, "Server not found.")
+                    case Some(server) =>
+                        val allowPlayers = server.getOrDefault("allowPlayers", "false").toBoolean
+                        if (!(allowPlayers && player.hasPermission("powertools.transfer.all"))) {
+                            sendError(player, "You don't have permission to transfer to this server.")
+                            return
+                        }
+
+                        try {
+                            val host = server.get("host")
+                            val port = server.get("port").toInt
+                            player.transfer(host, port)
+                        } catch {
+                            case _: NumberFormatException =>
+                                sendError(player, "Invalid port for server. Please contact a server admin")
+                            case ex: Exception =>
+                                sendError(player, s"Transfer failed: ${ex.getMessage}")
+                        }
+                }
+            })
+            .register()
     }
 
     /** Format a string converting legacy colors to MiniMessage */
