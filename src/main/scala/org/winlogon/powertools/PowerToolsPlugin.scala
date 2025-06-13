@@ -43,13 +43,11 @@ case class Configuration(
 )
 
 class PowerToolsPlugin extends JavaPlugin {
-    private val whitelistListener = WhitelistListener()
     private var config: Configuration = _
 
     override def onEnable(): Unit = {
         config = loadConfig()
         registerCommands()
-        getServer.getPluginManager.registerEvents(whitelistListener, this)
     }
 
     private def loadConfig(): Configuration = {
@@ -158,52 +156,6 @@ class PowerToolsPlugin extends JavaPlugin {
                         val target = args.get("target").asInstanceOf[Player]
                         val message = args.get("message").asInstanceOf[String]
                         executeSudoChat(sender, target, message)
-                        successStatus
-                    })
-            )
-            .register()
-
-        // Whitelist Request Command
-        CommandAPICommand("whitelistrequest")
-            .withPermission("powertools.whitelist")
-            .withAliases("wlreq", "wlrequest")
-            .withSubcommand(
-                CommandAPICommand("request")
-                    .withArguments(StringArgument("player"))
-                    .executesPlayer((player: Player, args: CommandArguments) => {
-                        val target = args.get("player").asInstanceOf[String]
-                        whitelistListener.handleRequest(player, target)
-                        successStatus
-                    })
-            )
-            .withSubcommand(
-                CommandAPICommand("list")
-                    .withPermission("whitelist.manage")
-                    .executesPlayer((player: Player, _: CommandArguments) => {
-                        whitelistListener.listRequests() match {
-                            case Some(lst) => lst.foreach(player.sendMessage)
-                            case None => player.sendRichMessage("<gray><red>No</red> requests found.</gray>")
-                        }
-                        successStatus
-                    })
-            )
-            .withSubcommand(
-                CommandAPICommand("accept")
-                    .withPermission("whitelist.manage")
-                    .withArguments(StringArgument("target"))
-                    .executesPlayer((player: Player, args: CommandArguments) => {
-                        val target = args.get("target").asInstanceOf[String]
-                        whitelistListener.acceptRequest(player, target)
-                        successStatus
-                    })
-            )
-            .withSubcommand(
-                CommandAPICommand("refuse")
-                    .withPermission("whitelist.manage")
-                    .withArguments(StringArgument("requester"))
-                    .executesPlayer((player: Player, args: CommandArguments) => {
-                        val requester = args.get("requester").asInstanceOf[String]
-                        whitelistListener.refuseRequest(player, requester)
                         successStatus
                     })
             )
