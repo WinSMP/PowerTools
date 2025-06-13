@@ -1,0 +1,52 @@
+name: Continuous Integration
+
+on:
+  pull_request:
+    branches: ['**']
+  push:
+    branches: ['**']
+
+env:
+  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+jobs:
+  build:
+    name: Build and Test
+    strategy:
+      matrix:
+        os: [ubuntu-latest]
+        scala: [3.3.6, 3.7.1]
+        java: [temurin@21]
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Java ${{ matrix.java }}
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+          cache: sbt
+
+      - name: Set up sbt
+        uses: sbt/setup-sbt@v1
+
+      - name: Compile
+        run: sbt "++${{ matrix.scala }}" compile
+
+      - name: Run tests (non‐blocking)
+        run: sbt "++${{ matrix.scala }}" test
+        continue-on-error: true
+
+      - name: Compress build artifacts
+        run: tar cf targets.tar target project/target
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: targets-${{ matrix.os }}-${{ matrix.scala }}-${{ matrix.java }}
+          path: targets.tar

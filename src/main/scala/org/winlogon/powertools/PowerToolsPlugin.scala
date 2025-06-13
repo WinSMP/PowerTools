@@ -467,27 +467,6 @@ class PowerToolsPlugin extends JavaPlugin {
             return
         }
 
-        CommandAPICommand("afklimbo")
-            .withPermission("powertools.transfer.afklimbo")
-            .executesPlayer((player: Player, arguments: CommandArguments) => {
-                config.transferConfig.servers.find(_.get("name") == "limbo") match {
-                    case Some(limbo) =>
-                        try {
-                            val host = limbo.get("host")
-                            val port = limbo.get("port").toInt
-                            player.transfer(host, port)
-                        } catch {
-                            case _: NumberFormatException =>
-                                sendError(player, "Invalid port configured for limbo server.")
-                            case ex: Exception =>
-                                sendError(player, s"Error transferring: ${ex.getMessage}")
-                        }
-                    case None =>
-                        sendError(player, "Limbo server is not configured.")
-                }
-            })
-            .register()
-
         CommandAPICommand("transfer")
             .withPermission("powertools.transfer")
             .withArguments(new StringArgument("server").replaceSuggestions(ArgumentSuggestions.strings(info => {
