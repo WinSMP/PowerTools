@@ -4,7 +4,7 @@ lazy val mainScalaClass = "org.winlogon.powertools.PowerToolsPlugin"
 lazy val scalaVer = "3.3.6"
 
 ThisBuild / scalaVersion := scalaVer
-ThisBuild / version := "0.3.0-SNAPSHOT"
+ThisBuild / version := "0.4.0-SNAPSHOT"
 ThisBuild / organization := "org.winlogon"
 ThisBuild / organizationName := "winlogon"
 Compile / mainClass := Some(mainScalaClass)
