@@ -3,7 +3,8 @@ package org.winlogon.powertools
 import dev.jorel.commandapi.CommandAPICommand
 import dev.jorel.commandapi.arguments.{
     EnchantmentArgument, GreedyStringArgument,
-    IntegerArgument, PlayerArgument, StringArgument
+    IntegerArgument, PlayerArgument, StringArgument,
+    ArgumentSuggestions
 }
 import dev.jorel.commandapi.executors.{CommandArguments, CommandExecutor}
 
@@ -28,24 +29,25 @@ import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer
 
 import scala.jdk.CollectionConverters.*
 import scala.util.{Try, Success, Failure}
+import scala.util.boundary
 
 case class UnenchantConfig(basePrice: Double)
 case class UnsafeEnchantConfig(enabled: Boolean)
 case class HealConfig(removeEffects: Boolean, showWhoHealed: Boolean)
+case class TransferConfig(enabled: Boolean, servers: List[java.util.HashMap[String, String]])
 case class Configuration(
     heal: HealConfig,
     unenchant: UnenchantConfig,
     unsafeEnchants: UnsafeEnchantConfig,
+    transferConfig: TransferConfig
 )
 
 class PowerToolsPlugin extends JavaPlugin {
-    private val whitelistListener = WhitelistListener()
     private var config: Configuration = _
 
     override def onEnable(): Unit = {
         config = loadConfig()
         registerCommands()
-        getServer.getPluginManager.registerEvents(whitelistListener, this)
     }
 
     private def loadConfig(): Configuration = {
@@ -55,14 +57,25 @@ class PowerToolsPlugin extends JavaPlugin {
 
         val healCfg = HealConfig(
             removeEffects = yamlConfig.getBoolean("heal.remove-effects", true),
-            showWhoHealed  = yamlConfig.getBoolean("heal.show-who-healed", false)
+            showWhoHealed = yamlConfig.getBoolean("heal.show-who-healed", false)
         )
         val unenchantCfg = UnenchantConfig(yamlConfig.getDouble("unenchant.base-price", 5.0))
         val unsafeCfg = UnsafeEnchantConfig(yamlConfig.getBoolean("unsafe-enchants.enabled", true))
+        val transferCfg = TransferConfig(
+            enabled = yamlConfig.getBoolean("transfer.enabled", true),
+            servers = yamlConfig.getMapList("transfer.servers").asScala.map { configMap =>
+                val map = new java.util.HashMap[String, String]()
+                configMap.asScala.foreach { case (k, v) =>
+                    map.put(k.toString, v.toString)
+                }
+                map
+            }.toList
+        )
 
-        Configuration(healCfg, unenchantCfg, unsafeCfg)
+        Configuration(healCfg, unenchantCfg, unsafeCfg, transferCfg)
     }
 
+    // TODO: add user-facing /transfer command which is configurable
     private def registerCommands(): Unit = {
         // Helper to always return 1 as status.
         val successStatus: Int = 1
@@ -79,7 +92,7 @@ class PowerToolsPlugin extends JavaPlugin {
             })
             .register()
 
-        // Hat Command
+        // Hat command
         CommandAPICommand("hat")
             .withPermission("powertools.hat")
             .executesPlayer((player: Player, _: CommandArguments) => {
@@ -148,58 +161,28 @@ class PowerToolsPlugin extends JavaPlugin {
             )
             .register()
 
-        // Whitelist Request Command
-        CommandAPICommand("whitelistrequest")
-            .withPermission("powertools.whitelist")
-            .withAliases("wlreq", "wlrequest")
-            .withSubcommand(
-                CommandAPICommand("request")
-                    .withArguments(StringArgument("player"))
-                    .executesPlayer((player: Player, args: CommandArguments) => {
-                        val target = args.get("player").asInstanceOf[String]
-                        whitelistListener.handleRequest(player, target)
-                        successStatus
-                    })
-            )
-            .withSubcommand(
-                CommandAPICommand("list")
-                    .withPermission("whitelist.manage")
-                    .executesPlayer((player: Player, _: CommandArguments) => {
-                        whitelistListener.listRequests() match {
-                            case Some(lst) => lst.foreach(player.sendMessage)
-                            case None => player.sendRichMessage("<gray><red>No</red> requests found.</gray>")
-                        }
-                        successStatus
-                    })
-            )
-            .withSubcommand(
-                CommandAPICommand("accept")
-                    .withPermission("whitelist.manage")
-                    .withArguments(StringArgument("target"))
-                    .executesPlayer((player: Player, args: CommandArguments) => {
-                        val target = args.get("target").asInstanceOf[String]
-                        whitelistListener.acceptRequest(player, target)
-                        successStatus
-                    })
-            )
-            .withSubcommand(
-                CommandAPICommand("refuse")
-                    .withPermission("whitelist.manage")
-                    .withArguments(StringArgument("requester"))
-                    .executesPlayer((player: Player, args: CommandArguments) => {
-                        val requester = args.get("requester").asInstanceOf[String]
-                        whitelistListener.refuseRequest(player, requester)
-                        successStatus
-                    })
-            )
-            .register()
-
         // Unenchant Command
         CommandAPICommand("splitenchants")
             .withPermission("powertools.splitenchants")
             .withAliases("split", "unenchant")
             .executesPlayer((player: Player, _: CommandArguments) => {
                 executeSplitUnenchant(player)
+                successStatus
+            })
+            .register()
+
+        CommandAPICommand("fly")
+            .withPermission("powertools.fly")
+            .executesPlayer((player: Player, _: CommandArguments) => {
+                val canFly = player.getAllowFlight()
+                val toggledFly = !canFly
+
+                val statusMessage = if (toggledFly) "enabled" else "disabled"
+                val color = if (toggledFly) "dark_aqua" else "red"
+
+                val playerName = s"<dark_green>${player.getName()}</dark_green>"
+                player.setAllowFlight(toggledFly)
+                player.sendRichMessage(s"<gray>Fly <$color>$statusMessage</$color> for $playerName.</gray>")
                 successStatus
             })
             .register()
@@ -227,8 +210,9 @@ class PowerToolsPlugin extends JavaPlugin {
                 successStatus
             })
             .register()
-    }
 
+        registerTransferCommandsIfEnabled(config.transferConfig.enabled)
+    }
     private def executeUnsafeEnchant(player: Player, args: CommandArguments): Unit = {
         if (!config.unsafeEnchants.enabled) {
             sendError(player, "Unsafe enchantments are disabled in config.")
@@ -428,6 +412,46 @@ class PowerToolsPlugin extends JavaPlugin {
         } else {
           sender.sendRichMessage(healedMessage)
         }
+    }
+
+    private def registerTransferCommandsIfEnabled(transferConfigEnabled: Boolean): Unit = {
+        if (!transferConfigEnabled) {
+            return
+        }
+
+        CommandAPICommand("transfer")
+            .withPermission("powertools.transfer")
+            .withArguments(new StringArgument("server").replaceSuggestions(ArgumentSuggestions.strings(info => {
+                config.transferConfig.servers.filter { server =>
+                    val allowPlayers = server.getOrDefault("allowPlayers", "false").toBoolean
+                    allowPlayers || info.sender().hasPermission("powertools.transfer.all")
+                }.map(_.get("name")).toArray
+            })))
+            .executesPlayer((player: Player, args: CommandArguments) => {
+                val serverName = args.get("server").asInstanceOf[String]
+                config.transferConfig.servers.find(_.get("name") == serverName) match {
+                    case None =>
+                        sendError(player, "Server not found.")
+                    case Some(server) =>
+                        val allowPlayers = server.getOrDefault("allowPlayers", "false").toBoolean
+                        if (!(allowPlayers && player.hasPermission("powertools.transfer.all"))) {
+                            sendError(player, "You don't have permission to transfer to this server.")
+                            return
+                        }
+
+                        try {
+                            val host = server.get("host")
+                            val port = server.get("port").toInt
+                            player.transfer(host, port)
+                        } catch {
+                            case _: NumberFormatException =>
+                                sendError(player, "Invalid port for server. Please contact a server admin")
+                            case ex: Exception =>
+                                sendError(player, s"Transfer failed: ${ex.getMessage}")
+                        }
+                }
+            })
+            .register()
     }
 
     /** Format a string converting legacy colors to MiniMessage */
