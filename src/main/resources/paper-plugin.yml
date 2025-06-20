@@ -1,6 +1,7 @@
 name: 'PowerTools'
 version: '0.4.0-SNAPSHOT'
 main: 'org.winlogon.powertools.PowerToolsPlugin'
+loader: 'org.winlogon.powertools.PowerToolsLoader'
 description: 'Fun utilities for everyone!'
 folia-supported: true
 api-version: 1.21

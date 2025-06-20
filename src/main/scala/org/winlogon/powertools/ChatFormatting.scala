@@ -17,6 +17,6 @@ object ChatFormatting {
 
     /** Convert a legacy formatted string into a MiniMessage Component */
     def apply(msg: String): Component = {
-        colorConverter.convertToComponent(msg)
+        colorConverter.convertToComponent(msg, '&')
     }
 }
