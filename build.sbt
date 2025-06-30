@@ -24,7 +24,7 @@ assembly / assemblyMergeStrategy := {
 assembly / mainClass := Some(mainScalaClass)
 
 libraryDependencies ++= Seq(
-    "io.papermc.paper" % "paper-api" % "1.21.5-R0.1-SNAPSHOT" % Provided,
+    "io.papermc.paper" % "paper-api" % "1.21.6-R0.1-SNAPSHOT" % Provided,
     "dev.jorel" % "commandapi-bukkit-core" % "10.0.1" % Provided,
     "org.winlogon" % "retrohue" % "0.1.1" % Provided
 )
