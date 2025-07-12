@@ -119,6 +119,14 @@ class PowerToolsPlugin extends JavaPlugin {
             })
             .register()
 
+        CommandAPICommand("absorb")
+            .withPermission("powertools.absorb")
+            .executesPlayer((player: Player, _: CommandArguments) => {
+                // TODO: absorb player and check if they have required item in inv
+                successStatus
+            })
+            .register()
+
         // Smite Command
         CommandAPICommand("smite")
             .withPermission("powertools.smite")
