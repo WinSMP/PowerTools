@@ -14,7 +14,7 @@ class AbsorbAnimal(private val plugin: PowerToolsPlugin) {
     fun executeAbsorb(player: Player) {
         val targetEntity = player.getTargetEntity(5) // 5 block range
         if (targetEntity == null) {
-            sendError(player, "You must be looking at a pet within 5 blocks.")
+            ChatFormatting.sendError(player, "You must be looking at a pet within 5 blocks.")
             return
         }
 
@@ -22,7 +22,7 @@ class AbsorbAnimal(private val plugin: PowerToolsPlugin) {
             targetEntity.owner?.uniqueId == player.uniqueId) {
             absorbPet(player, targetEntity)
         } else {
-            sendError(player, "You must be looking at a tamed pet that you own.")
+            ChatFormatting.sendError(player, "You must be looking at a tamed pet that you own.")
         }
     }
 
@@ -56,9 +56,5 @@ class AbsorbAnimal(private val plugin: PowerToolsPlugin) {
     
     private fun fmt(s: String): Component {
         return plugin.fmt(s)
-    }
-    
-    private fun sendError(p: Player, s: String) {
-        plugin.sendError(p, s)
     }
 }
