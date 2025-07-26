@@ -30,6 +30,8 @@ import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer
 import scala.jdk.CollectionConverters.*
 import scala.util.{Try, Success, Failure}
 import scala.util.boundary
+import scala.util.chaining.scalaUtilChainingOps
+import org.bukkit.event.inventory.InventoryType
 
 case class UnenchantConfig(basePrice: Double)
 case class UnsafeEnchantConfig(enabled: Boolean)
@@ -112,7 +114,7 @@ class PowerToolsPlugin extends JavaPlugin {
                 if (!targetName.equalsIgnoreCase(player.getName)) {
                     executeInvsee(player, targetName)
                 } else {
-                    sendError(player, "You cannot invsee yourself.")
+                    sendError(player, "you cannot invsee yourself")
                 }
 
                 successStatus
@@ -169,10 +171,9 @@ class PowerToolsPlugin extends JavaPlugin {
             )
             .register()
 
-        // Unenchant Command
-        CommandAPICommand("splitenchants")
+        CommandAPICommand("split")
             .withPermission("powertools.splitenchants")
-            .withAliases("split", "unenchant")
+            .withAliases("unenchant")
             .executesPlayer((player: Player, _: CommandArguments) => {
                 executeSplitUnenchant(player)
                 successStatus
@@ -223,7 +224,7 @@ class PowerToolsPlugin extends JavaPlugin {
     }
     private def executeUnsafeEnchant(player: Player, args: CommandArguments): Unit = {
         if (!config.unsafeEnchants.enabled) {
-            sendError(player, "Unsafe enchantments are disabled in config.")
+            sendError(player, "unsafe enchantments are disabled in config")
             return
         }
         val enchantment = args.get("enchantment").asInstanceOf[Enchantment]
@@ -231,7 +232,7 @@ class PowerToolsPlugin extends JavaPlugin {
 
         Option(player.getInventory.getItemInMainHand)
             .filter(item => item.getType != Material.AIR)
-            .fold(sendError(player, "You must be holding an item to enchant.")) { item =>
+            .fold(sendError(player, "you must be holding an item to enchant")) { item =>
                 item.addUnsafeEnchantment(enchantment, level)
                 player.updateInventory()
 
@@ -264,21 +265,21 @@ class PowerToolsPlugin extends JavaPlugin {
         itemHand
             .filter(_.getType == Material.ENCHANTED_BOOK)
             .foreach { _ =>
-                sendError(player, "The item can't be an enchanted book.")
+                sendError(player, "the item can't be an enchanted book")
                 return
             }
 
         itemHand
             .filterNot(item => item == null || item.getType == Material.AIR)
-            .fold(sendError(player, "You must be holding an item.")) { itemInHand =>
+            .fold(sendError(player, "you must be holding an item")) { itemInHand =>
                 val enchantments = itemInHand.getEnchantments
                 if (enchantments.isEmpty) {
-                    sendError(player, "This item has no enchantments to split.")
+                    sendError(player, "this item has no enchantments to split")
                     return
                 }
                 val cost = (config.unenchant.basePrice * enchantments.size).toInt
                 if (player.getTotalExperience < cost) {
-                    sendError(player, s"You need at least $cost XP to split these enchantments.")
+                    sendError(player, s"you need at least $cost XP to split these enchantments")
                     return
                 }
                 player.giveExp(-cost)
@@ -319,7 +320,7 @@ class PowerToolsPlugin extends JavaPlugin {
 
     private def executeSudoCommand(sender: CommandSender, target: Player, command: String): Unit = {
         if (target == null || !target.isOnline) {
-            sender.sendMessage(fmt("<#F93822>Error&7: Player not found or offline."))
+            sendError(sender, "player not found or offline")
             return
         }
         // Use the scheduler to perform the command asynchronously.
@@ -328,11 +329,15 @@ class PowerToolsPlugin extends JavaPlugin {
 
     private def executeSudoChat(sender: CommandSender, target: Player, message: String): Unit = {
         if (target == null || !target.isOnline) {
-            sendError(sender, "Player not found or offline.")
+            sendError(sender, "player not found or offline")
             return
         }
         val players = Bukkit.getOnlinePlayers()
+
+        val consoleSenderAudience = Audience.audience(Bukkit.getConsoleSender())
         val viewers = new java.util.HashSet[Audience](players)
+        viewers.add(consoleSenderAudience)
+
         val userMsg = fmt(message)
 
         // `AsyncChatEvent`s called by plugins must be synchronous
@@ -356,26 +361,41 @@ class PowerToolsPlugin extends JavaPlugin {
             case Some(h) =>
                 inv.setHelmet(hand)
                 inv.setItemInMainHand(h)
-                player.sendMessage(fmt("&7Swapping items..."))
+                player.sendRichMessage("<gray>Swapping items...</gray>")
             case None =>
                 inv.setHelmet(hand)
                 inv.setItemInMainHand(null)
         }
         player.updateInventory()
-        player.sendMessage(fmt("&7Your held item is now &3on your head!"))
+        player.sendRichMessage("<gray>Your held item is now <dark_aqua>on your head</dark_aqua>!")
     }
 
     private def executeInvsee(player: Player, targetName: String): Unit = {
         Option(Bukkit.getPlayer(targetName))
             .filter(_.isOnline)
-            .fold(sendError(player, "Player not found or offline."))(target => player.openInventory(target.getInventory))
+            .fold(sendError(player, "player not found or offline"))(target => {
+                var inventorySize = 45
+                val targetInventory = target.getInventory
+
+                if (targetInventory.getSize() > inventorySize) {
+                    inventorySize = targetInventory.getSize()
+                }
+
+                // FIXME: you originally could open a player's inventory normally but for some
+                // reason, between 1.21.5 and 1.21.6 you can't do it anymore.
+                val wrapperInventory = Bukkit.createInventory(null, inventorySize)
+                wrapperInventory.setContents(targetInventory.getContents)
+                player.openInventory(wrapperInventory)
+
+                // TODO: since you can't open a player inventory as before, the changes need
+                // to be written back to the target's inventory
+            })
     }
 
     private def executeSmite(sender: CommandSender, targetName: String): Unit = {
         Option(Bukkit.getPlayer(targetName))
-            .filter(_.isOnline) // if the player is online and is not null
-            // or else if he is, sendError, or else
-            .fold(sendError(sender, "Player not found or offline.")) { target =>
+            .filter(_.isOnline)
+            .fold(sendError(sender, "player not found or offline")) { target =>
                 val result = Try {
                     target.getWorld.strikeLightning(target.getLocation)
                 }
@@ -383,9 +403,9 @@ class PowerToolsPlugin extends JavaPlugin {
                 result match {
                     case Success(_) =>
                         sender.sendMessage(fmt(s"&7You have smitten &3${target.getName}!"))
-                        target.sendMessage(fmt("&7You have been smitten by <b>&3a mighty force!"))
+                        target.sendMessage(fmt("&7You have been smitten by <b>&3a mighty force&7!"))
                     case Failure(_) =>
-                        sendError(sender, "Failed to smite player.")
+                        sendError(sender, "failed to smite player")
                 }
             }
     }
@@ -422,6 +442,8 @@ class PowerToolsPlugin extends JavaPlugin {
         }
     }
 
+    // TODO: I'm not totally sure I remember what this is here for, is it for aliasing a
+    // server IP? If yes then it should have another name.
     private def registerTransferCommandsIfEnabled(transferConfigEnabled: Boolean): Unit = {
         if (!transferConfigEnabled) {
             return
@@ -437,13 +459,14 @@ class PowerToolsPlugin extends JavaPlugin {
             })))
             .executesPlayer((player: Player, args: CommandArguments) => {
                 val serverName = args.get("server").asInstanceOf[String]
-                config.transferConfig.servers.find(_.get("name") == serverName) match {
-                    case None =>
-                        sendError(player, "Server not found.")
-                    case Some(server) =>
+
+                config.transferConfig.servers
+                    .find(_.get("name") == serverName)
+                    .fold(sendError(player, "server not found"))( server => {
                         val allowPlayers = server.getOrDefault("allowPlayers", "false").toBoolean
+
                         if (!(allowPlayers && player.hasPermission("powertools.transfer.all"))) {
-                            sendError(player, "You don't have permission to transfer to this server.")
+                            sendError(player, "you don't have permission to transfer to this server")
                             return
                         }
 
@@ -453,19 +476,31 @@ class PowerToolsPlugin extends JavaPlugin {
                             player.transfer(host, port)
                         } catch {
                             case _: NumberFormatException =>
-                                sendError(player, "Invalid port for server. Please contact a server admin")
+                                sendError(player, "invalid port for server! Please contact a server admin")
                             case ex: Exception =>
-                                sendError(player, s"Transfer failed: ${ex.getMessage}")
+                                sendError(player, s"transfer failed: ${ex.getMessage}")
                         }
-                }
+                    })
             })
             .register()
     }
 
     /** Format a string converting legacy colors to MiniMessage */
-    private def fmt(s: String): Component = ChatFormatting.apply(s)
+    private def fmt(s: String): Component = ChatFormatting.translateLegacyCodes(s)
 
     /** Send an error message to the player */
     private def sendError(target: Player | CommandSender, err: String): Unit =
-        target.sendMessage(fmt(s"<#F93822>Error&7: $err"))
+        target.sendMessage(fmt(s"<#F93822>Error&7: ${sentenceCase(err)}"))
+
+    private def sentenceCase(input: String): String = {
+        input
+            .trim
+            .pipe { s =>
+              if (s.isEmpty) s
+              else s.head.toUpper + s.tail
+            }
+            .pipe { s =>
+              if (s.endsWith(".")) s else s + "."
+            }
+    }
 }

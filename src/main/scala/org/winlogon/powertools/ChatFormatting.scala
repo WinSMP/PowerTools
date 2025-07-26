@@ -10,13 +10,9 @@ import net.kyori.adventure.text.minimessage.tag.standard.StandardTags
 object ChatFormatting {
     private val miniMessage = MiniMessage.miniMessage()
     private val colorConverter = RetroHue(miniMessage)
-    private val tagsResolver: TagResolver = TagResolver
-        .builder()
-        .resolver(StandardTags.defaults())
-        .build()
 
     /** Convert a legacy formatted string into a MiniMessage Component */
-    def apply(msg: String): Component = {
+    def translateLegacyCodes(msg: String): Component = {
         colorConverter.convertToComponent(msg, '&')
     }
 }
