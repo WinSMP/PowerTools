@@ -7,6 +7,8 @@ import revxrsal.commands.annotation.Dependency
 import revxrsal.commands.annotation.Named
 import revxrsal.commands.annotation.Optional
 import revxrsal.commands.annotation.Subcommand
+import revxrsal.commands.annotation.SuggestWith
+
 import revxrsal.commands.bukkit.BukkitLamp
 import revxrsal.commands.bukkit.actor.BukkitCommandActor
 import revxrsal.commands.bukkit.annotation.CommandPermission
@@ -16,6 +18,7 @@ import net.kyori.adventure.text.Component
 import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder
 import net.kyori.adventure.text.minimessage.tag.resolver.TagResolver
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer
+import net.kyori.adventure.key.Key
 
 import org.bukkit.Bukkit
 import org.bukkit.Material
@@ -28,11 +31,15 @@ import org.bukkit.entity.Player
 import org.bukkit.inventory.ItemStack
 import org.bukkit.inventory.meta.EnchantmentStorageMeta
 import org.bukkit.plugin.java.JavaPlugin
-import kotlin.math.roundToInt
+import org.winlogon.powertools.suggestions.EnchantmentSuggestions
 import io.papermc.paper.datacomponent.DataComponentTypes
+import io.papermc.paper.registry.RegistryAccess
+import io.papermc.paper.registry.RegistryKey
+import io.papermc.paper.registry.TypedKey
+
+import kotlin.math.roundToInt
 
 class PowerToolsPlugin : JavaPlugin() {
-    @Dependency
     private lateinit var config: Configuration
     private lateinit var absorbAnimal: AbsorbAnimal
     private lateinit var lamp: Lamp<BukkitCommandActor>
@@ -133,7 +140,7 @@ class PowerToolsPlugin : JavaPlugin() {
 
     @Command("absorb")
     fun absorb(actor: BukkitCommandActor) {
-        // TODO: absorb player and check if they have required item in inv
+        actor.sender().sendRichMessage("<gray>Not yet implemented</gray>")
     }
 
     @Command("smite")
@@ -249,18 +256,27 @@ class PowerToolsPlugin : JavaPlugin() {
         player.sendRichMessage("<gray>Fly <$color>$statusMessage</$color> for $playerName.</gray>")
     }
 
-    @Command("enchantunsafe", "ue", "uenchant")
+    @Command("ue", "unsafe-ench", "uenchant")
     fun enchantUnsafe(
         actor: BukkitCommandActor,
-        @Named("enchantment") enchantment: Enchantment,
+        @SuggestWith(EnchantmentSuggestions::class) @Named("enchantment") enchant: String,
         @Named("level") level: Int
     ) {
+        // context
+        val registry = RegistryAccess.registryAccess().getRegistry(RegistryKey.ENCHANTMENT)
+        val typedKey = TypedKey.create(RegistryKey.ENCHANTMENT, Key.key("minecraft:$enchant"))
+        val enchantment = registry.get(typedKey) ?: run {
+            ChatFormatting.sendError(actor.sender(), "invalid enchantment, or not found")
+            return
+        }
+
         val player = actor.sender() as Player
 
         if (!config.unsafeEnchants.enabled) {
             ChatFormatting.sendError(player, "unsafe enchantments are disabled in config")
             return
         }
+
         val item = player.inventory.itemInMainHand
         if (item.type == Material.AIR) {
             ChatFormatting.sendError(player, "you must be holding an item to enchant")
