@@ -1,15 +1,14 @@
 package org.winlogon.powertools
 
-import io.papermc.paper.plugin.loader.library.impl.MavenLibraryResolver
 import io.papermc.paper.plugin.loader.PluginClasspathBuilder
 import io.papermc.paper.plugin.loader.PluginLoader
-
+import io.papermc.paper.plugin.loader.library.impl.MavenLibraryResolver
 import org.eclipse.aether.artifact.DefaultArtifact
 import org.eclipse.aether.graph.Dependency
 import org.eclipse.aether.repository.RemoteRepository
 
-class PowerToolsLoader extends PluginLoader {
-    override def classloader(classpathBuilder: PluginClasspathBuilder): Unit = {
+class PowerToolsLoader : PluginLoader {
+    override fun classloader(classpathBuilder: PluginClasspathBuilder) {
         val resolver = MavenLibraryResolver()
 
         resolver.addRepository(
