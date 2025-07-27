@@ -90,12 +90,10 @@ class PowerToolsPlugin : JavaPlugin() {
         @Named("message") message: String
     ) {
         val formattedMessage = "<dark_gray>[<dark_aqua>Broadcast<dark_gray>] <message>"
-        val messageComponent = Placeholder.component("message", Component.text(message))
+        val messageComponent = Placeholder.component("message", Component.text(message, NamedTextColor.GRAY))
 
         Bukkit.getOnlinePlayers().forEach { it.sendRichMessage(formattedMessage, messageComponent) }
-        if (actor.sender() is ConsoleCommandSender) {
-            actor.sender().sendRichMessage(formattedMessage, messageComponent)
-        }
+        Bukkit.getConsoleSender().sendRichMessage(formattedMessage, messageComponent)
     }
 
     @Command("hat")
@@ -285,6 +283,7 @@ class PowerToolsPlugin : JavaPlugin() {
         // context
         val registry = RegistryAccess.registryAccess().getRegistry(RegistryKey.ENCHANTMENT)
         val typedKey = TypedKey.create(RegistryKey.ENCHANTMENT, Key.key("minecraft:$enchant"))
+
         val enchantment = registry.get(typedKey) ?: run {
             ChatFormatting.sendError(actor.sender(), "invalid enchantment, or not found")
             return

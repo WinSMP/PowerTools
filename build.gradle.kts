@@ -2,9 +2,11 @@ import java.text.SimpleDateFormat
 import org.jetbrains.kotlin.gradle.tasks.KotlinJvmCompile
 import java.util.*
 
+val kotlinVersion = "2.2.0"
+
 plugins {
     id("com.gradleup.shadow") version "8.3.6"
-    kotlin("jvm") version "2.1.10"
+    kotlin("jvm") version "2.2.0"
 }
 
 group = "org.winlogon.powertools"
@@ -68,6 +70,9 @@ val lampVersion = "4.0.0-rc.12"
 dependencies {
     compileOnly("io.papermc.paper:paper-api:1.21.6-R0.1-SNAPSHOT")
     compileOnly("org.winlogon:retrohue:0.1.1")
+    compileOnly("org.winlogon:asynccraftr:0.1.0")
+    implementation("org.jetbrains.kotlin:kotlin-stdlib:${kotlinVersion}")
+
     implementation("io.github.revxrsal:lamp.common:$lampVersion")
     implementation("io.github.revxrsal:lamp.bukkit:$lampVersion")
     implementation("io.github.revxrsal:lamp.brigadier:$lampVersion")
@@ -95,6 +100,15 @@ tasks.processResources {
 tasks.shadowJar {
     archiveClassifier.set("")
     minimize()
+    dependencies {
+        include(dependency("org.jetbrains.kotlin:kotlin-stdlib"))
+        include(dependency("io.github.revxrsal:lamp.common:$lampVersion"))
+        include(dependency("io.github.revxrsal:lamp.bukkit:$lampVersion"))
+        include(dependency("io.github.revxrsal:lamp.brigadier:$lampVersion"))
+    }
+    relocate("io.github.revxrsal.lamp", "${project.group}.shaded.lamp")
+    relocate("kotlin", "${project.group}.shaded.kotlin")
+    mergeServiceFiles()
 }
 
 tasks.jar {

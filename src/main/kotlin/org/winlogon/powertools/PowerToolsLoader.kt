@@ -23,13 +23,9 @@ class PowerToolsLoader : PluginLoader {
             )
         }
 
-        val lampVersion = "4.0.0-rc.12"
         val dependencies = mapOf(
             "org.winlogon:retrohue" to "0.1.1",
-            "org.winlogon:asynccraftr" to "0.1.1",
-            "io.github.revxrsal:lamp.common" to lampVersion,
-            "io.github.revxrsal:lamp.bukkit" to lampVersion,
-            "io.github.revxrsal:lamp.brigadier" to lampVersion
+            "org.winlogon:asynccraftr" to "0.1.0",
         )
 
         dependencies.forEach { (artifactId, version) ->
