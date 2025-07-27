@@ -14,13 +14,15 @@ import revxrsal.commands.bukkit.actor.BukkitCommandActor
 import revxrsal.commands.bukkit.annotation.CommandPermission
 
 import net.kyori.adventure.audience.Audience
+import net.kyori.adventure.key.Key
 import net.kyori.adventure.text.Component
+import net.kyori.adventure.text.format.NamedTextColor
 import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder
 import net.kyori.adventure.text.minimessage.tag.resolver.TagResolver
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer
-import net.kyori.adventure.key.Key
 
 import org.bukkit.Bukkit
+import org.bukkit.GameMode
 import org.bukkit.Material
 import org.bukkit.attribute.Attribute
 import org.bukkit.command.CommandSender
@@ -32,6 +34,8 @@ import org.bukkit.inventory.ItemStack
 import org.bukkit.inventory.meta.EnchantmentStorageMeta
 import org.bukkit.plugin.java.JavaPlugin
 import org.winlogon.powertools.suggestions.EnchantmentSuggestions
+import org.winlogon.asynccraftr.AsyncCraftr
+
 import io.papermc.paper.datacomponent.DataComponentTypes
 import io.papermc.paper.registry.RegistryAccess
 import io.papermc.paper.registry.RegistryKey
@@ -44,12 +48,17 @@ class PowerToolsPlugin : JavaPlugin() {
     private lateinit var absorbAnimal: AbsorbAnimal
     private lateinit var lamp: Lamp<BukkitCommandActor>
     private val romanNumeralRegex = """^(?=.)M{0,4}(CM|CD|D?C{0,3})(XC|XL|L?X{0,3})(IX|IV|V?I{0,3})$""".toRegex()
-    
+
     override fun onEnable() {
         config = loadConfig()
         absorbAnimal = AbsorbAnimal(this)
+
+        val sudoCommands = SudoCommands(this)
         lamp = BukkitLamp.builder(this).build()
-        lamp.register(this)
+        lamp.apply {
+            register(this@PowerToolsPlugin)
+            register(sudoCommands)
+        }
     }
 
     private fun loadConfig(): Configuration {
@@ -77,12 +86,12 @@ class PowerToolsPlugin : JavaPlugin() {
 
     @Command("broadcast", "bc")
     fun broadcast(
-        actor: BukkitCommandActor, 
+        actor: BukkitCommandActor,
         @Named("message") message: String
     ) {
         val formattedMessage = "<dark_gray>[<dark_aqua>Broadcast<dark_gray>] <message>"
         val messageComponent = Placeholder.component("message", Component.text(message))
-        
+
         Bukkit.getOnlinePlayers().forEach { it.sendRichMessage(formattedMessage, messageComponent) }
         if (actor.sender() is ConsoleCommandSender) {
             actor.sender().sendRichMessage(formattedMessage, messageComponent)
@@ -96,7 +105,7 @@ class PowerToolsPlugin : JavaPlugin() {
         val inv = player.inventory
         val hand = inv.itemInMainHand
         val helmet = inv.helmet
-        
+
         if (helmet != null) {
             inv.helmet = hand
             inv.setItemInMainHand(helmet)
@@ -105,14 +114,14 @@ class PowerToolsPlugin : JavaPlugin() {
             inv.helmet = hand
             inv.setItemInMainHand(null)
         }
-        
+
         player.updateInventory()
         player.sendRichMessage("<gray>Your held item is now <dark_aqua>on your head</dark_aqua>!")
     }
 
     @Command("invsee")
     fun invsee(
-        actor: BukkitCommandActor, 
+        actor: BukkitCommandActor,
         @Named("target") target: Player
     ) {
         if (target.name == actor.name()) {
@@ -129,12 +138,12 @@ class PowerToolsPlugin : JavaPlugin() {
 
         val targetInv = target.inventory
         val inventorySize = maxOf(45, targetInv.size)
-        
+
         val wrapper = Bukkit.createInventory(null, inventorySize)
         wrapper.contents = targetInv.contents
-        
+
         player.openInventory(wrapper)
-        
+
         // TODO: sync changes back into target’s inventory when closing widget
     }
 
@@ -145,24 +154,24 @@ class PowerToolsPlugin : JavaPlugin() {
 
     @Command("smite")
     fun smite(
-        actor: BukkitCommandActor, 
+        actor: BukkitCommandActor,
         @Named("target") target: Player
     ) {
+        val player = actor.sender()
         target.takeIf { it.isOnline }?.let { tgt ->
             try {
                 tgt.world.strikeLightning(target.location)
-                actor.sender().sendMessage(fmt("&7You have smitten &3${target.name}!"))
-                target.sendMessage(fmt("&7You have been smitten by <b>&3a mighty force&7!"))
+                player.sendRichMessage("<gray>You have smitten <dark_aqua>${target.name}</dark_aqua>!</gray>")
+                target.sendRichMessage("<gray>You have been smitten by <b><dark_aqua>a mighty force</b>!</gray>")
             } catch (e: Exception) {
-                ChatFormatting.sendError(actor.sender(), "failed to smite player")
+                ChatFormatting.sendError(player, "failed to smite player - ${e.message}")
             }
-        } ?: ChatFormatting.sendError(actor.sender(), "player not found or offline")
+        } ?: ChatFormatting.sendError(player, "player not found or offline")
     }
 
-    @Subcommand("sudo")
     @Command("sudo")
     class SudoCommands(private val plugin: PowerToolsPlugin) {
-        @Subcommand("command", "cmd")
+        @Subcommand("cmd")
         fun sudoCommand(
             actor: BukkitCommandActor,
             @Named("target") target: Player,
@@ -172,10 +181,10 @@ class PowerToolsPlugin : JavaPlugin() {
                 ChatFormatting.sendError(actor.sender(), "player not found or offline")
                 return
             }
-            target.scheduler.execute(plugin, Runnable { target.chat("/${command.trim()}") }, null, 0L)
+            AsyncCraftr.runEntityTask(plugin, target, Runnable { target.chat("/${command.trim()}") })
         }
 
-        @Subcommand("chat")
+        @Subcommand("echo")
         fun sudoChat(
             actor: BukkitCommandActor,
             @Named("target") target: Player,
@@ -196,23 +205,23 @@ class PowerToolsPlugin : JavaPlugin() {
 
         val inventory = player.inventory
         val itemHand = inventory.itemInMainHand
-        
+
         if (itemHand.type == Material.ENCHANTED_BOOK) {
             ChatFormatting.sendError(player, "the item can't be an enchanted book")
             return
         }
-        
+
         if (itemHand.type == Material.AIR) {
             ChatFormatting.sendError(player, "you must be holding an item")
             return
         }
-        
+
         val enchantments = itemHand.enchantments
         if (enchantments.isEmpty()) {
             ChatFormatting.sendError(player, "this item has no enchantments to split")
             return
         }
-        
+
         val cost = (config.unenchant.basePrice * enchantments.size).roundToInt()
         if (player.totalExperience < cost) {
             ChatFormatting.sendError(player, "you need at least $cost XP to split these enchantments")
@@ -230,16 +239,20 @@ class PowerToolsPlugin : JavaPlugin() {
             val bookMeta = book.itemMeta as EnchantmentStorageMeta
             bookMeta.addStoredEnchant(ench, level, true)
             book.itemMeta = bookMeta
-            
+
             if (inventory.firstEmpty() == -1) {
                 player.world.dropItemNaturally(player.location, book)
             } else {
                 inventory.addItem(book)
             }
         }
-        
+
         player.updateInventory()
-        player.sendMessage(fmt("&7Successfully split &3${enchantments.size} &7enchantment(s) for &2$cost XP."))
+        player.sendRichMessage(
+            "<gray>Successfully split <enchantments> enchantment(s) for <cost> XP.</gray>",
+            Placeholder.component("enchantments", Component.text(enchantments.size.toString(), NamedTextColor.DARK_AQUA)),
+            Placeholder.component("cost", Component.text(cost.toString(), NamedTextColor.GREEN))
+        )
     }
 
     @Command("fly")
@@ -249,9 +262,14 @@ class PowerToolsPlugin : JavaPlugin() {
         val toggledFly = !canFly
 
         val statusMessage = if (toggledFly) "enabled" else "disabled"
-        val color = if (toggledFly) "dark_aqua" else "red"
-        val playerName = "<dark_green>${player.name}</dark_green>"
-        
+        val color = if (toggledFly) "green" else "red"
+        val playerName = "<dark_aqua>${player.name}</dark_aqua>"
+
+        if (player.gameMode == GameMode.CREATIVE) {
+            player.allowFlight = true
+            ChatFormatting.sendError(player, "flying is always disabled in creative mode. Keeping fly enabled")
+            return
+        }
         player.allowFlight = toggledFly
         player.sendRichMessage("<gray>Fly <$color>$statusMessage</$color> for $playerName.</gray>")
     }
@@ -262,6 +280,8 @@ class PowerToolsPlugin : JavaPlugin() {
         @SuggestWith(EnchantmentSuggestions::class) @Named("enchantment") enchant: String,
         @Named("level") level: Int
     ) {
+        // this should be precomputed somewhere
+        val unsafeEnchantsPrefix = ChatFormatting.colorConverter.convertToComponent("&8[&5UE&8]")
         // context
         val registry = RegistryAccess.registryAccess().getRegistry(RegistryKey.ENCHANTMENT)
         val typedKey = TypedKey.create(RegistryKey.ENCHANTMENT, Key.key("minecraft:$enchant"))
@@ -282,7 +302,7 @@ class PowerToolsPlugin : JavaPlugin() {
             ChatFormatting.sendError(player, "you must be holding an item to enchant")
             return
         }
-        
+
         item.addUnsafeEnchantment(enchantment, level)
         player.updateInventory()
 
@@ -297,8 +317,15 @@ class PowerToolsPlugin : JavaPlugin() {
             }
         }
 
-        val prefix = "&8[&5UE&8]"
-        player.sendMessage(fmt("$prefix <gray>Applied <dark_aqua>$finalDisplayName</dark_aqua> at level <dark_green>$level</dark_green>."))
+        val finalDisplayNameComponent = Component.text(finalDisplayName, NamedTextColor.DARK_AQUA)
+        val levelComponent = Component.text(level.toString(), NamedTextColor.DARK_GREEN)
+
+        player.sendRichMessage(
+            "<prefix> <gray>Applied <ench-display-name> at level <level>.",
+            Placeholder.component("prefix", unsafeEnchantsPrefix),
+            Placeholder.component("ench-display-name", finalDisplayNameComponent),
+            Placeholder.component("level", levelComponent)
+        )
     }
 
     @Command("heal", "h")
@@ -340,11 +367,6 @@ class PowerToolsPlugin : JavaPlugin() {
             sender.sendRichMessage(healedMessage)
         }
     }
-
-    fun fmt(s: String): Component {
-        return ChatFormatting.translateLegacyCodes(s)
-    }
-
 }
 
 // Configuration classes
