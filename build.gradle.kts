@@ -71,6 +71,7 @@ dependencies {
     compileOnly("io.papermc.paper:paper-api:1.21.6-R0.1-SNAPSHOT")
     compileOnly("org.winlogon:retrohue:0.1.1")
     compileOnly("org.winlogon:asynccraftr:0.1.0")
+    compileOnly("de.tr7zw:item-nbt-api:2.15.1")
     implementation("org.jetbrains.kotlin:kotlin-stdlib:${kotlinVersion}")
 
     implementation("io.github.revxrsal:lamp.common:$lampVersion")
@@ -94,6 +95,19 @@ tasks.processResources {
             "VERSION" to pluginVersion,
             "PACKAGE" to pluginPackage
         )
+    }
+}
+
+tasks.register<Copy>("createMojangMapped") {
+    from(layout.projectDirectory.file("empty-marker"))
+    into(layout.buildDirectory.dir("generated-resources/META-INF"))
+    rename { ".mojang-mapped" }
+}
+
+tasks.processResources {
+    dependsOn("createMojangMapped")
+    from(layout.buildDirectory.dir("generated-resources/META-INF")) {
+        into("META-INF")
     }
 }
 
