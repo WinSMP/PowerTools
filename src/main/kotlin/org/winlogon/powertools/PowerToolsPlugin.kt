@@ -44,6 +44,7 @@ import io.papermc.paper.registry.TypedKey
 
 import kotlin.math.roundToInt
 import java.time.Duration
+import de.tr7zw.changeme.nbtapi.NBT
 
 class PowerToolsPlugin : JavaPlugin() {
     private lateinit var config: Configuration
@@ -52,6 +53,11 @@ class PowerToolsPlugin : JavaPlugin() {
     private val romanNumeralRegex = """^(?=.)M{0,4}(CM|CD|D?C{0,3})(XC|XL|L?X{0,3})(IX|IV|V?I{0,3})$""".toRegex()
 
     override fun onEnable() {
+        if (!NBT.preloadApi()) {
+            logger.warning("NBT API not found")
+            server.pluginManager.disablePlugin(this)
+            return
+        }
         config = loadConfig()
         absorbAnimal = AbsorbAnimal(this)
 

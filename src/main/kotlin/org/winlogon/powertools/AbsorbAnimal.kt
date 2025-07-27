@@ -28,6 +28,7 @@ import org.bukkit.event.HandlerList
 import org.bukkit.plugin.Plugin
 
 import java.util.function.Function
+import java.util.UUID
 
 class AbsorbAnimal(private val plugin: Plugin) {
     private companion object {
@@ -63,21 +64,43 @@ class AbsorbAnimal(private val plugin: Plugin) {
     }
 
     private fun absorbPet(player: Player, pet: Tameable) {
-        val compound: ReadWriteNBT = NBT.get(pet, Function<ReadableNBT, ReadWriteNBT> { nbt ->
-            val copy = NBT.parseNBT(nbt.toString())
-            listOf("UUID", "Pos", "Dimension", "id").forEach(copy::removeKey)
-            copy
+        val nbtString = NBT.get(pet, Function<ReadableNBT, String> { nbt ->
+            nbt.toString()
         }) ?: run {
             ChatFormatting.sendError(player, "failed to read pet data")
             return
         }
-    
+
+        Bukkit.getLogger().info("${player.name}'s pet NBT data is: $nbtString")
+
         val spawnEggMaterial = getEggMaterialFor(pet) ?: run {
             ChatFormatting.sendError(player, "invalid pet type")
             return
         }
-    
+
         val baseEgg = ItemStack(spawnEggMaterial)
+        val compound = NBT.parseNBT(nbtString)
+
+        // remove unnecessary keys
+        listOf("UUID", "Pos", "Dimension", "id").forEach(compound::removeKey)
+        
+        val ownerIntArray = compound.getIntArray("Owner")
+        if (ownerIntArray != null && ownerIntArray.size == 4) {
+            // convert int array to UUID
+            val msb = ownerIntArray[0].toLong() shl 32 or (ownerIntArray[1].toLong() and 0xFFFFFFFFL)
+            val lsb = ownerIntArray[2].toLong() shl 32 or (ownerIntArray[3].toLong() and 0xFFFFFFFFL)
+            val uuid = UUID(msb, lsb)
+            compound.removeKey("Owner")
+            compound.setString("OwnerUUID", uuid.toString())
+        }
+        
+        val petName = pet.customName()
+        if (petName != null) {
+            val customName = plainSerializer.serialize(petName)
+            val jsonName = "{\"text\":\"${customName}\"}"
+            compound.setString("CustomName", jsonName)
+        }
+
         val finalEggStack: ItemStack = NBT.modify(baseEgg, Function<ReadWriteItemNBT, ItemStack> { itemNbt ->
             val entityTag = itemNbt.getOrCreateCompound("EntityTag")
             entityTag.mergeCompound(compound)
