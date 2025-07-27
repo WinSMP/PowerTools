@@ -33,6 +33,7 @@ import org.bukkit.entity.Player
 import org.bukkit.inventory.ItemStack
 import org.bukkit.inventory.meta.EnchantmentStorageMeta
 import org.bukkit.plugin.java.JavaPlugin
+import org.bukkit.event.HandlerList
 import org.winlogon.powertools.suggestions.EnchantmentSuggestions
 import org.winlogon.asynccraftr.AsyncCraftr
 
@@ -42,6 +43,7 @@ import io.papermc.paper.registry.RegistryKey
 import io.papermc.paper.registry.TypedKey
 
 import kotlin.math.roundToInt
+import java.time.Duration
 
 class PowerToolsPlugin : JavaPlugin() {
     private lateinit var config: Configuration
@@ -147,7 +149,16 @@ class PowerToolsPlugin : JavaPlugin() {
 
     @Command("absorb")
     fun absorb(actor: BukkitCommandActor) {
-        actor.sender().sendRichMessage("<gray>Not yet implemented</gray>")
+        val player = actor.sender() as Player
+        player.sendRichMessage("<gray>You have <dark_aqua>5 seconds</dark_aqua> to right-click your pet to absorb it.</gray>")
+
+        val listener = ClickListener(this, player)
+        server.pluginManager.registerEvents(listener, this)
+
+        AsyncCraftr.runEntityTaskLater(this, player, Runnable {
+            HandlerList.unregisterAll(listener)
+            player.sendRichMessage("<gray>Absorb window <red>expired</red>.</gray>")
+        }, Duration.ofSeconds(5))
     }
 
     @Command("smite")

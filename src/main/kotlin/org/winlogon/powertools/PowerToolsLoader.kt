@@ -14,7 +14,8 @@ class PowerToolsLoader : PluginLoader {
 
         val resolvers = mapOf(
             "central" to MavenLibraryResolver.MAVEN_CENTRAL_DEFAULT_MIRROR,
-            "winlogon-code" to "https://maven.winlogon.org/releases"
+            "winlogon-code" to "https://maven.winlogon.org/releases",
+            "codemc" to "https://repo.codemc.io/repository/maven-public/",
         )
 
         resolvers.forEach { (name, url) ->
@@ -26,6 +27,7 @@ class PowerToolsLoader : PluginLoader {
         val dependencies = mapOf(
             "org.winlogon:retrohue" to "0.1.1",
             "org.winlogon:asynccraftr" to "0.1.0",
+            "de.tr7zw:item-nbt-api" to "2.15.1",
         )
 
         dependencies.forEach { (artifactId, version) ->
