@@ -7,14 +7,13 @@ import org.bukkit.command.CommandSender
 
 object ChatFormatting {
     private val miniMessage = MiniMessage.miniMessage()
-    private val colorConverter = RetroHue(miniMessage)
-
-    fun translateLegacyCodes(msg: String): Component {
-        return colorConverter.convertToComponent(msg, '&')
-    }
+    val colorConverter = RetroHue(miniMessage)
 
     fun sendError(target: CommandSender, err: String) {
-        target.sendMessage(translateLegacyCodes("<#F93822>Error&7: ${sentenceCase(err)}"))
+        val formattedMessage = colorConverter.convertToComponent(
+            "<#F93822>Error&7: ${sentenceCase(err)}", '&'
+        )
+        target.sendMessage(formattedMessage)
     }
 
     private fun sentenceCase(input: String): String {
