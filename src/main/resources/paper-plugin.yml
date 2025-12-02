@@ -1,17 +1,7 @@
-name: 'PowerTools'
-version: '0.4.0-SNAPSHOT'
-main: 'org.winlogon.powertools.PowerToolsPlugin'
-loader: 'org.winlogon.powertools.PowerToolsLoader'
+name: '${NAME}'
+version: '${VERSION}'
+main: '${PACKAGE}.PowerToolsPlugin'
+loader: '${PACKAGE}.PowerToolsLoader'
 description: 'Fun utilities for everyone!'
 folia-supported: true
-api-version: 1.21
-dependencies:
-  server:
-    CommandAPI:
-      load: BEFORE
-      required: true
-      join-classpath: true
-    ScalaLoader:
-      load: BEFORE
-      required: true
-      join-classpath: true
+api-version: 1.21.6
