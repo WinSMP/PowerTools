@@ -1,0 +1,48 @@
+name: Continuous Integration
+
+on:
+  pull_request:
+    branches: ['**']
+  push:
+    branches: ['**']
+
+jobs:
+  build:
+    name: Build & Test
+    strategy:
+      matrix:
+        os: [ubuntu-latest]
+        java: [21]
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Set up Java ${{ matrix.java }}
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: ${{ matrix.java }}
+          cache: gradle
+
+      - name: Grant execute permission for Gradle
+        run: chmod +x gradlew
+
+      - name: Build
+        run: ./gradlew build --stacktrace
+
+      - name: Run tests (non-blocking)
+        run: ./gradlew test --stacktrace
+        continue-on-error: true
+
+      - name: Compress build artifacts
+        run: tar cf targets.tar build/libs build/resources
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v5
+        with:
+          name: targets-${{ matrix.os }}-${{ matrix.java }}
+          path: targets.tar
