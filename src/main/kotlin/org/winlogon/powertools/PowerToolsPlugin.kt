@@ -100,8 +100,7 @@ class PowerToolsPlugin : JavaPlugin() {
         val formattedMessage = "<dark_gray>[<dark_aqua>Broadcast<dark_gray>] <message>"
         val messageComponent = Placeholder.component("message", Component.text(message, NamedTextColor.GRAY))
 
-        Bukkit.getOnlinePlayers().forEach { it.sendRichMessage(formattedMessage, messageComponent) }
-        Bukkit.getConsoleSender().sendRichMessage(formattedMessage, messageComponent)
+        Bukkit.getServer().sendRichMessage(formattedMessage, messageComponent)
     }
 
     @Command("hat")
@@ -282,7 +281,7 @@ class PowerToolsPlugin : JavaPlugin() {
 
         if (player.gameMode == GameMode.CREATIVE) {
             player.allowFlight = true
-            ChatFormatting.sendError(player, "flying is always disabled in creative mode. Keeping fly enabled")
+            ChatFormatting.sendError(player, "flying is always enabled in creative mode. Keeping fly enabled")
             return
         }
         player.allowFlight = toggledFly
