@@ -2,11 +2,11 @@ import java.text.SimpleDateFormat
 import org.jetbrains.kotlin.gradle.tasks.KotlinJvmCompile
 import java.util.*
 
-val kotlinVersion = "2.2.0"
+val kotlinVersion = "2.2.21"
 
 plugins {
     id("com.gradleup.shadow") version "8.3.6"
-    kotlin("jvm") version "2.2.0"
+    kotlin("jvm") version "2.2.21"
 }
 
 group = "org.winlogon.powertools"
@@ -65,13 +65,13 @@ repositories {
     mavenCentral()
 }
 
-val lampVersion = "4.0.0-rc.12"
+val lampVersion = "4.0.0-rc.14"
 
 dependencies {
     compileOnly("io.papermc.paper:paper-api:1.21.6-R0.1-SNAPSHOT")
     compileOnly("org.winlogon:retrohue:0.1.1")
     compileOnly("org.winlogon:asynccraftr:0.1.0")
-    compileOnly("de.tr7zw:item-nbt-api:2.15.1")
+    compileOnly("de.tr7zw:item-nbt-api:2.15.3")
     implementation("org.jetbrains.kotlin:kotlin-stdlib:${kotlinVersion}")
 
     implementation("io.github.revxrsal:lamp.common:$lampVersion")

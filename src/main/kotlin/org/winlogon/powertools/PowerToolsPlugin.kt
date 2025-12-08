@@ -295,7 +295,7 @@ class PowerToolsPlugin : JavaPlugin() {
         @Named("level") level: Int
     ) {
         // this should be precomputed somewhere
-        val unsafeEnchantsPrefix = ChatFormatting.colorConverter.convertToComponent("&8[&5UE&8]")
+        val unsafeEnchantsPrefix = ChatFormatting.colorConverter.convertToComponent("&8[&5UE&8]", '&')
         // context
         val registry = RegistryAccess.registryAccess().getRegistry(RegistryKey.ENCHANTMENT)
         val typedKey = TypedKey.create(RegistryKey.ENCHANTMENT, Key.key("minecraft:$enchant"))
