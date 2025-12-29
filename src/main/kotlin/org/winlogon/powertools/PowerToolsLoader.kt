@@ -27,7 +27,7 @@ class PowerToolsLoader : PluginLoader {
         val dependencies = mapOf(
             "org.winlogon:retrohue" to "0.1.1",
             "org.winlogon:asynccraftr" to "0.1.0",
-            "de.tr7zw:item-nbt-api" to "2.15.3",
+            "de.tr7zw:item-nbt-api" to "2.15.5",
         )
 
         dependencies.forEach { (artifactId, version) ->

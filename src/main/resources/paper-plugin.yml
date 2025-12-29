@@ -4,4 +4,4 @@ main: '${PACKAGE}.PowerToolsPlugin'
 loader: '${PACKAGE}.PowerToolsLoader'
 description: 'Fun utilities for everyone!'
 folia-supported: true
-api-version: 1.21.9
+api-version: '${API_VERSION}'
