@@ -26,9 +26,6 @@ import org.bukkit.GameMode
 import org.bukkit.Material
 import org.bukkit.attribute.Attribute
 import org.bukkit.command.CommandSender
-import org.bukkit.command.ConsoleCommandSender
-import org.bukkit.command.TabCompleter
-import org.bukkit.enchantments.Enchantment
 import org.bukkit.entity.Player
 import org.bukkit.inventory.ItemStack
 import org.bukkit.inventory.meta.EnchantmentStorageMeta
@@ -45,6 +42,7 @@ import io.papermc.paper.registry.TypedKey
 import kotlin.math.roundToInt
 import java.time.Duration
 import de.tr7zw.changeme.nbtapi.NBT
+import org.winlogon.powertools.ChatFormatting.sendError
 
 class PowerToolsPlugin : JavaPlugin() {
     private lateinit var config: Configuration
@@ -54,7 +52,7 @@ class PowerToolsPlugin : JavaPlugin() {
 
     override fun onEnable() {
         if (!NBT.preloadApi()) {
-            logger.warning("NBT API not found")
+            logger.severe("NBT API not found")
             server.pluginManager.disablePlugin(this)
             return
         }
@@ -130,14 +128,14 @@ class PowerToolsPlugin : JavaPlugin() {
         @Named("target") target: Player
     ) {
         if (target.name == actor.name()) {
-            ChatFormatting.sendError(actor.sender(), "you cannot invsee yourself")
+            sendError(actor.sender(), "you cannot invsee yourself")
             return
         }
 
         val player = actor.sender() as Player
 
         if (!target.isOnline) {
-            ChatFormatting.sendError(player, "player not found or offline")
+            player.sendError("player not found or offline")
             return
         }
 
@@ -160,7 +158,7 @@ class PowerToolsPlugin : JavaPlugin() {
         val listener = ClickListener(this, player)
         server.pluginManager.registerEvents(listener, this)
 
-        AsyncCraftr.runEntityTaskLater(this, player, Runnable {
+        AsyncCraftr.runEntityTaskLater(this, player, {
             HandlerList.unregisterAll(listener)
             player.sendRichMessage("<gray>Absorb window <red>expired</red>.</gray>")
         }, Duration.ofSeconds(5))
@@ -178,9 +176,9 @@ class PowerToolsPlugin : JavaPlugin() {
                 player.sendRichMessage("<gray>You have smitten <dark_aqua>${target.name}</dark_aqua>!</gray>")
                 target.sendRichMessage("<gray>You have been smitten by <b><dark_aqua>a mighty force</b>!</gray>")
             } catch (e: Exception) {
-                ChatFormatting.sendError(player, "failed to smite player - ${e.message}")
+                sendError(player, "failed to smite player - ${e.message}")
             }
-        } ?: ChatFormatting.sendError(player, "player not found or offline")
+        } ?: sendError(player, "player not found or offline")
     }
 
     @Command("sudo")
@@ -192,10 +190,10 @@ class PowerToolsPlugin : JavaPlugin() {
             @Named("command") command: String
         ) {
             if (!target.isOnline) {
-                ChatFormatting.sendError(actor.sender(), "player not found or offline")
+                sendError(actor.sender(), "player not found or offline")
                 return
             }
-            AsyncCraftr.runEntityTask(plugin, target, Runnable { target.chat("/${command.trim()}") })
+            AsyncCraftr.runEntityTask(plugin, target) { target.chat("/${command.trim()}") }
         }
 
         @Subcommand("echo")
@@ -205,7 +203,7 @@ class PowerToolsPlugin : JavaPlugin() {
             @Named("message") message: String
         ) {
             if (!target.isOnline) {
-                ChatFormatting.sendError(actor.sender(), "player not found or offline")
+                sendError(actor.sender(), "player not found or offline")
                 return
             }
 
@@ -221,24 +219,24 @@ class PowerToolsPlugin : JavaPlugin() {
         val itemHand = inventory.itemInMainHand
 
         if (itemHand.type == Material.ENCHANTED_BOOK) {
-            ChatFormatting.sendError(player, "the item can't be an enchanted book")
+            player.sendError("the item can't be an enchanted book")
             return
         }
 
         if (itemHand.type == Material.AIR) {
-            ChatFormatting.sendError(player, "you must be holding an item")
+            player.sendError("you must be holding an item")
             return
         }
 
         val enchantments = itemHand.enchantments
         if (enchantments.isEmpty()) {
-            ChatFormatting.sendError(player, "this item has no enchantments to split")
+            player.sendError("this item has no enchantments to split")
             return
         }
 
         val cost = (config.unenchant.basePrice * enchantments.size).roundToInt()
         if (player.totalExperience < cost) {
-            ChatFormatting.sendError(player, "you need at least $cost XP to split these enchantments")
+            player.sendError("you need at least $cost XP to split these enchantments")
             return
         }
         player.giveExp(-cost)
@@ -281,7 +279,7 @@ class PowerToolsPlugin : JavaPlugin() {
 
         if (player.gameMode == GameMode.CREATIVE) {
             player.allowFlight = true
-            ChatFormatting.sendError(player, "flying is always enabled in creative mode. Keeping fly enabled")
+            player.sendError("flying is always enabled in creative mode. Keeping fly enabled")
             return
         }
         player.allowFlight = toggledFly
@@ -301,20 +299,20 @@ class PowerToolsPlugin : JavaPlugin() {
         val typedKey = TypedKey.create(RegistryKey.ENCHANTMENT, Key.key("minecraft:$enchant"))
 
         val enchantment = registry.get(typedKey) ?: run {
-            ChatFormatting.sendError(actor.sender(), "invalid enchantment, or not found")
+            sendError(actor.sender(), "invalid enchantment, or not found")
             return
         }
 
         val player = actor.sender() as Player
 
         if (!config.unsafeEnchants.enabled) {
-            ChatFormatting.sendError(player, "unsafe enchantments are disabled in config")
+            player.sendError("unsafe enchantments are disabled in config")
             return
         }
 
         val item = player.inventory.itemInMainHand
         if (item.type == Material.AIR) {
-            ChatFormatting.sendError(player, "you must be holding an item to enchant")
+            player.sendError("you must be holding an item to enchant")
             return
         }
 

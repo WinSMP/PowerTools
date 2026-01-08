@@ -1,24 +1,18 @@
 package org.winlogon.powertools
 
 import de.tr7zw.changeme.nbtapi.NBT
-import de.tr7zw.changeme.nbtapi.NBTEntity
-import de.tr7zw.changeme.nbtapi.NBTItem
-import de.tr7zw.changeme.nbtapi.iface.ReadWriteNBT
 import de.tr7zw.changeme.nbtapi.iface.ReadableNBT
 import de.tr7zw.changeme.nbtapi.iface.ReadWriteItemNBT
 
 import net.kyori.adventure.text.Component
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer
 
-import org.bukkit.Bukkit
 import org.bukkit.Material
 import org.bukkit.NamespacedKey
 import org.bukkit.entity.EntityType
 import org.bukkit.entity.Player
 import org.bukkit.entity.Tameable
 import org.bukkit.inventory.ItemStack
-import org.bukkit.inventory.meta.ItemMeta
-import org.bukkit.inventory.meta.SpawnEggMeta
 import org.bukkit.inventory.EquipmentSlot
 import org.bukkit.persistence.PersistentDataType
 import org.bukkit.event.player.PlayerInteractAtEntityEvent
@@ -26,14 +20,16 @@ import org.bukkit.event.EventHandler
 import org.bukkit.event.Listener
 import org.bukkit.event.HandlerList
 import org.bukkit.plugin.Plugin
+import org.winlogon.powertools.ChatFormatting.sendLegacyMessage
 
 import java.util.function.Function
 import java.util.UUID
+import java.util.logging.Logger
 
 class AbsorbAnimal(private val plugin: Plugin) {
     private companion object {
         private val plainSerializer = PlainTextComponentSerializer.plainText()
-        private val EGG_MAP: Map<EntityType, Material> = Material.values()
+        private val EGG_MAP: Map<EntityType, Material> = Material.entries
             .asSequence()
             .filter { it.name.endsWith("_SPAWN_EGG") }
             .mapNotNull { mat ->
@@ -47,6 +43,8 @@ class AbsorbAnimal(private val plugin: Plugin) {
             }
             .toMap()
     }
+    
+    private val logger: Logger = plugin.logger
 
     fun absorbPetOf(player: Player) {
         // 5 block range
@@ -55,8 +53,7 @@ class AbsorbAnimal(private val plugin: Plugin) {
             return
         }
 
-        if (targetEntity is Tameable && targetEntity.isTamed &&
-            targetEntity.owner?.uniqueId == player.uniqueId) {
+        if (targetEntity is Tameable && targetEntity.isTamed && targetEntity.owner?.uniqueId == player.uniqueId) {
             absorbPet(player, targetEntity)
         } else {
             ChatFormatting.sendError(player, "You must be looking at a tamed pet that you own.")
@@ -71,7 +68,7 @@ class AbsorbAnimal(private val plugin: Plugin) {
             return
         }
 
-        Bukkit.getLogger().info("${player.name}'s pet NBT data is: $nbtString")
+        logger.info("${player.name}'s pet NBT data is: $nbtString")
 
         val spawnEggMaterial = getEggMaterialFor(pet) ?: run {
             ChatFormatting.sendError(player, "invalid pet type")
@@ -123,7 +120,7 @@ class AbsorbAnimal(private val plugin: Plugin) {
     
         pet.remove()
         player.inventory.addItem(finalEggStack)
-        player.sendMessage(fmt("&7Successfully <gray>absorbed your pet!"))
+        player.sendLegacyMessage("&7Successfully <gray>absorbed your pet!")
     }
 
     private fun fmt(s: String): Component {
@@ -139,12 +136,15 @@ class ClickListener(private val plugin: Plugin, private val player: Player) : Li
     @EventHandler
     fun onClick(event: PlayerInteractAtEntityEvent) {
         if (event.player == player && event.hand == EquipmentSlot.HAND) {
-            player.rayTraceEntities(5)?.hitEntity.let {
-                if (it == event.rightClicked) {
-                    AbsorbAnimal(plugin).absorbPetOf(player)
-                    HandlerList.unregisterAll(this@ClickListener)
-                }
+            val hit = player.rayTraceEntities(5)?.hitEntity ?: return
+
+            if (hit == event.rightClicked) {
+                val name = hit.customName() ?: Component.text(hit.type.name.lowercase())
+                plugin.logger.info("Found entity: $name")
+
+                AbsorbAnimal(plugin).absorbPetOf(player)
+                HandlerList.unregisterAll(this)
             }
         }
     }
-  }
+}
