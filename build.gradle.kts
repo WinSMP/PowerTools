@@ -2,11 +2,11 @@ import java.text.SimpleDateFormat
 import org.jetbrains.kotlin.gradle.tasks.KotlinJvmCompile
 import java.util.*
 
-val kotlinVersion = "2.3.0"
+val kotlinVersion = "2.3.20"
 
 plugins {
     id("com.gradleup.shadow") version "9.3.0"
-    kotlin("jvm") version "2.3.0"
+    kotlin("jvm") version "2.3.20"
 }
 
 group = "org.winlogon.powertools"
@@ -65,12 +65,12 @@ repositories {
     mavenCentral()
 }
 
-val lampVersion = "4.0.0-rc.14"
-val minecraftVersion = "1.21.11"
-val nbtVersion = "2.15.5"
+val lampVersion = "4.0.0-rc.16"
+val minecraftVersion = "26.1.2"
+val nbtVersion = "2.15.7"
 
 dependencies {
-    compileOnly("io.papermc.paper:paper-api:$minecraftVersion-R0.1-SNAPSHOT")
+    compileOnly("io.papermc.paper:paper-api:$minecraftVersion.build.+")
     compileOnly("org.winlogon:retrohue:0.1.1")
     compileOnly("org.winlogon:asynccraftr:0.1.0")
     compileOnly("de.tr7zw:item-nbt-api:$nbtVersion")
@@ -81,7 +81,7 @@ dependencies {
     implementation("io.github.revxrsal:lamp.brigadier:$lampVersion")
     
     testRuntimeOnly("org.junit.platform:junit-platform-launcher:1.11.4")
-    testImplementation("io.papermc.paper:paper-api:$minecraftVersion-R0.1-SNAPSHOT")
+    testImplementation("io.papermc.paper:paper-api:$minecraftVersion.build.+")
     testImplementation("org.junit.jupiter:junit-jupiter:5.11.4")
 }
 

@@ -110,11 +110,11 @@ class PowerToolsPlugin : JavaPlugin() {
         val helmet = inv.helmet
 
         if (helmet != null) {
-            inv.helmet = hand
+            inv.setHelmet(hand)
             inv.setItemInMainHand(helmet)
             player.sendRichMessage("<gray>Swapping items...</gray>")
         } else {
-            inv.helmet = hand
+            inv.setHelmet(hand)
             inv.setItemInMainHand(null)
         }
 
@@ -140,14 +140,7 @@ class PowerToolsPlugin : JavaPlugin() {
         }
 
         val targetInv = target.inventory
-        val inventorySize = maxOf(45, targetInv.size)
-
-        val wrapper = Bukkit.createInventory(null, inventorySize)
-        wrapper.contents = targetInv.contents
-
-        player.openInventory(wrapper)
-
-        // TODO: sync changes back into target’s inventory when closing widget
+        player.openInventory(targetInv)
     }
 
     @Command("absorb")
