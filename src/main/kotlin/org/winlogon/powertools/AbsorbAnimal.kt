@@ -1,33 +1,29 @@
 package org.winlogon.powertools
 
-import de.tr7zw.changeme.nbtapi.NBT
-import de.tr7zw.changeme.nbtapi.iface.ReadableNBT
-import de.tr7zw.changeme.nbtapi.iface.ReadWriteItemNBT
-
 import net.kyori.adventure.text.Component
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer
 
 import org.bukkit.Material
-import org.bukkit.NamespacedKey
 import org.bukkit.entity.EntityType
 import org.bukkit.entity.Player
 import org.bukkit.entity.Tameable
 import org.bukkit.inventory.ItemStack
 import org.bukkit.inventory.EquipmentSlot
-import org.bukkit.persistence.PersistentDataType
+import org.bukkit.inventory.meta.SpawnEggMeta
 import org.bukkit.event.player.PlayerInteractAtEntityEvent
 import org.bukkit.event.EventHandler
 import org.bukkit.event.Listener
 import org.bukkit.event.HandlerList
 import org.bukkit.plugin.Plugin
+import org.winlogon.powertools.ChatFormatting.sentenceCase
 import org.winlogon.powertools.ChatFormatting.sendLegacyMessage
 
-import java.util.function.Function
-import java.util.UUID
-import java.util.logging.Logger
+const val MAX_ENTITY_RANGE = 5
 
 class AbsorbAnimal(private val plugin: Plugin) {
+
     private companion object {
+
         private val plainSerializer = PlainTextComponentSerializer.plainText()
         private val EGG_MAP: Map<EntityType, Material> = Material.entries
             .asSequence()
@@ -44,12 +40,10 @@ class AbsorbAnimal(private val plugin: Plugin) {
             .toMap()
     }
     
-    private val logger: Logger = plugin.logger
-
     fun absorbPetOf(player: Player) {
         // 5 block range
-        val targetEntity = player.getTargetEntity(5) ?: run {
-            ChatFormatting.sendError(player, "You must be looking at a pet within 5 blocks.")
+        val targetEntity = player.getTargetEntity(MAX_ENTITY_RANGE) ?: run {
+            ChatFormatting.sendError(player, "You must be looking at a pet within $MAX_ENTITY_RANGE blocks.")
             return
         }
 
@@ -61,68 +55,62 @@ class AbsorbAnimal(private val plugin: Plugin) {
     }
 
     private fun absorbPet(player: Player, pet: Tameable) {
-        val nbtString = NBT.get(pet, Function<ReadableNBT, String> { nbt ->
-            nbt.toString()
-        }) ?: run {
-            ChatFormatting.sendError(player, "failed to read pet data")
-            return
-        }
-
-        logger.info("${player.name}'s pet NBT data is: $nbtString")
+        val petType = pet.type
+        val typeLabel = petType.name.lowercase().replace('_', ' ')
+        val petName = pet.customName()
 
         val spawnEggMaterial = getEggMaterialFor(pet) ?: run {
             ChatFormatting.sendError(player, "invalid pet type")
             return
         }
 
-        val baseEgg = ItemStack(spawnEggMaterial)
-        val compound = NBT.parseNBT(nbtString)
-
-        // remove unnecessary keys
-        listOf("UUID", "Pos", "Dimension", "id").forEach(compound::removeKey)
-        
-        val ownerIntArray = compound.getIntArray("Owner")
-        if (ownerIntArray != null && ownerIntArray.size == 4) {
-            // convert int array to UUID
-            val msb = ownerIntArray[0].toLong() shl 32 or (ownerIntArray[1].toLong() and 0xFFFFFFFFL)
-            val lsb = ownerIntArray[2].toLong() shl 32 or (ownerIntArray[3].toLong() and 0xFFFFFFFFL)
-            val uuid = UUID(msb, lsb)
-            compound.removeKey("Owner")
-            compound.setString("OwnerUUID", uuid.toString())
-        }
-        
-        val petName = pet.customName()
-        if (petName != null) {
-            val customName = plainSerializer.serialize(petName)
-            val jsonName = "{\"text\":\"${customName}\"}"
-            compound.setString("CustomName", jsonName)
+        // a snapshot is the pet's complete save, without data that the egg would have no business storing.
+        // it's null only for entities that are not persistent (a tamed pet is always persisted)
+        val snapshot = pet.createSnapshot() ?: run {
+            ChatFormatting.sendError(player, "failed to read pet data")
+            return
         }
 
-        val finalEggStack: ItemStack = NBT.modify(baseEgg, Function<ReadWriteItemNBT, ItemStack> { itemNbt ->
-            val entityTag = itemNbt.getOrCreateCompound("EntityTag")
-            entityTag.mergeCompound(compound)
-            baseEgg
-        })
-    
-        val meta = finalEggStack.itemMeta ?: return
-        val entityType = pet.type
-        meta.displayName(fmt("<dark_aqua>Absorbed ${entityType.name.lowercase().replace('_',' ')}"))
-        meta.lore(listOf(
-            fmt("<gray>Right click to spawn</gray>"),
-            fmt("<gray>Pet name: <dark_gray>${plainSerializer.serialize(pet.name())}</dark_gray></gray>"),
-            fmt("<gray>Pet level: <dark_gray>${pet.health}</dark_gray></gray>"),
-        ))
-        meta.persistentDataContainer.apply {
-            set(NamespacedKey(plugin, "absorbed_entity_type"), PersistentDataType.STRING, entityType.name)
-            set(NamespacedKey(plugin, "absorbed_nbt"), PersistentDataType.STRING, compound.toString())
+        val egg = ItemStack(spawnEggMaterial)
+
+        // vanilla reads only the entity_data component when spawning from a spawn egg, and that is used to
+        // restore the tamed state on use
+        if (!egg.editMeta(SpawnEggMeta::class.java) { it.setSpawnedEntity(snapshot) }) {
+            ChatFormatting.sendError(player, "failed to store pet data")
+            return
         }
-        finalEggStack.itemMeta = meta
-    
+
+        egg.editMeta { meta ->
+            // the item's own name is copied onto whatever spawns from it, so an unnamed pet must
+            // get an unlabelled egg or it would come back named "Absorbed <type>"
+            val mobType = typeLabel.sentenceCase(appendPeriod = false)
+            if (petName != null) {
+                val customName = plainSerializer.serialize(petName)
+                // TODO: replace with a gradient from #94587b to #b66c97
+                meta.displayName(fmt("<color:#b66c97>$mobType ($customName)</color>"))
+            } else {
+                meta.displayName(fmt("<color:#b66c97>Packed $mobType</color>"))
+            }
+            meta.lore(listOf(
+                // fmt("<gray>Absorbed $typeLabel</gray>"),
+                fmt("<gray>Right click to spawn</gray>"),
+                fmt("<gray>Pet name: <dark_gray>${plainSerializer.serialize(petName ?: pet.name())}</dark_gray></gray>"),
+                fmt("<gray>Pet health: <dark_gray>${pet.health}</dark_gray></gray>"),
+            ))
+        }
+
+        // the pet is only removed once the egg exists and there is room to hand it over
+        if (player.inventory.firstEmpty() == -1) {
+            ChatFormatting.sendError(player, "your inventory is full")
+            return
+        }
+
         pet.remove()
-        player.inventory.addItem(finalEggStack)
-        player.sendLegacyMessage("&7Successfully <gray>absorbed your pet!")
+        player.inventory.addItem(egg)
+        player.sendLegacyMessage("<dark_aqua>Successfully</dark_aqua> <gray>absorbed your pet!")
     }
 
+    /// Formats a string to a Component, converting MiniMessage and legacy codes
     private fun fmt(s: String): Component {
         return ChatFormatting.colorConverter.convertToComponent(s, '&')
     }
@@ -136,12 +124,9 @@ class ClickListener(private val plugin: Plugin, private val player: Player) : Li
     @EventHandler
     fun onClick(event: PlayerInteractAtEntityEvent) {
         if (event.player == player && event.hand == EquipmentSlot.HAND) {
-            val hit = player.rayTraceEntities(5)?.hitEntity ?: return
+            val hit = player.rayTraceEntities(MAX_ENTITY_RANGE)?.hitEntity ?: return
 
             if (hit == event.rightClicked) {
-                val name = hit.customName() ?: Component.text(hit.type.name.lowercase())
-                plugin.logger.info("Found entity: $name")
-
                 AbsorbAnimal(plugin).absorbPetOf(player)
                 HandlerList.unregisterAll(this)
             }

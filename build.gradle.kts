@@ -67,13 +67,11 @@ repositories {
 
 val lampVersion = "4.0.0-rc.16"
 val minecraftVersion = "26.1.2"
-val nbtVersion = "2.15.7"
 
 dependencies {
     compileOnly("io.papermc.paper:paper-api:$minecraftVersion.build.+")
     compileOnly("org.winlogon:retrohue:0.1.1")
     compileOnly("org.winlogon:asynccraftr:0.1.0")
-    compileOnly("de.tr7zw:item-nbt-api:$nbtVersion")
     implementation("org.jetbrains.kotlin:kotlin-stdlib:$kotlinVersion")
 
     implementation("io.github.revxrsal:lamp.common:$lampVersion")
@@ -98,19 +96,6 @@ tasks.processResources {
             "PACKAGE" to pluginPackage,
             "API_VERSION" to minecraftVersion
         )
-    }
-}
-
-tasks.register<Copy>("createMojangMapped") {
-    from(layout.projectDirectory.file("empty-marker"))
-    into(layout.buildDirectory.dir("generated-resources/META-INF"))
-    rename { ".mojang-mapped" }
-}
-
-tasks.processResources {
-    dependsOn("createMojangMapped")
-    from(layout.buildDirectory.dir("generated-resources/META-INF")) {
-        into("META-INF")
     }
 }
 
