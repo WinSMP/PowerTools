@@ -70,8 +70,8 @@ val minecraftVersion = "26.1.2"
 
 dependencies {
     compileOnly("io.papermc.paper:paper-api:$minecraftVersion.build.+")
-    compileOnly("org.winlogon:retrohue:0.1.1")
-    compileOnly("org.winlogon:asynccraftr:0.1.0")
+    compileOnly("org.winlogon:retrohue:0.2.0")
+    compileOnly("org.winlogon:asynccraftr:0.2.0")
     implementation("org.jetbrains.kotlin:kotlin-stdlib:$kotlinVersion")
 
     implementation("io.github.revxrsal:lamp.common:$lampVersion")

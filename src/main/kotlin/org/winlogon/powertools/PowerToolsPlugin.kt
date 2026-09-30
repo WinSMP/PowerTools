@@ -30,7 +30,6 @@ import org.bukkit.entity.Player
 import org.bukkit.inventory.ItemStack
 import org.bukkit.inventory.meta.EnchantmentStorageMeta
 import org.bukkit.plugin.java.JavaPlugin
-import org.bukkit.event.HandlerList
 import org.winlogon.powertools.suggestions.EnchantmentSuggestions
 import org.winlogon.asynccraftr.AsyncCraftr
 
@@ -117,6 +116,7 @@ class PowerToolsPlugin : JavaPlugin() {
     }
 
     @Command("invsee")
+    @CommandPermission("powertools.command.invsee")
     fun invsee(
         actor: BukkitCommandActor,
         @Named("target") target: Player
@@ -137,18 +137,21 @@ class PowerToolsPlugin : JavaPlugin() {
         player.openInventory(targetInv)
     }
 
-    @Command("absorb")
-    fun absorb(actor: BukkitCommandActor) {
+    @Command("pack", "stow", "stash")
+    @CommandPermission("powertools.command.pack")
+    fun pack(actor: BukkitCommandActor) {
         val player = actor.sender() as Player
-        player.sendRichMessage("<gray>You have <dark_aqua>5 seconds</dark_aqua> to right-click your pet to absorb it.</gray>")
+        player.sendRichMessage("<gray>You have <dark_aqua>5 seconds</dark_aqua> to right-click your pet to pack it.</gray>")
 
-        val listener = ClickListener(this, player)
-        server.pluginManager.registerEvents(listener, this)
-
-        AsyncCraftr.runEntityTaskLater(this, player, {
-            HandlerList.unregisterAll(listener)
-            player.sendRichMessage("<gray>Absorb window <red>expired</red>.</gray>")
-        }, Duration.ofSeconds(5))
+        absorbAnimal.awaitClick(player).also { window ->
+            AsyncCraftr.runEntityTaskLater(this, player, {
+                // only complain if this window was still open, otherwise the pet was already packed
+                // or a newer window has taken over
+                if (absorbAnimal.cancel(player, window)) {
+                    player.sendRichMessage("<gray>Pack window <red>expired</red>.</gray>")
+                }
+            }, Duration.ofSeconds(5))
+        }
     }
 
     @Command("smite")
