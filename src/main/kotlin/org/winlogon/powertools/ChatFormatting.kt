@@ -42,9 +42,12 @@ object ChatFormatting {
     }
 
     fun String.sentenceCase(appendPeriod: Boolean = true): String {
-        return this.trim()
-                .let { if (it.isEmpty()) it else it[0].uppercaseChar() + it.substring(1) }
-                .let { if (appendPeriod && !it.endsWith(".")) "$it." else it }
+        val trimmed = trim()
+        // there is nothing to capitalise, and a period on its own would read as a whole message
+        if (trimmed.isEmpty()) return trimmed
+
+        val sentence = trimmed[0].uppercaseChar() + trimmed.substring(1)
+        return if (appendPeriod && !sentence.endsWith(".")) "$sentence." else sentence
     }
 
     /**

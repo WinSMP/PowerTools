@@ -66,11 +66,12 @@ repositories {
 }
 
 val lampVersion = "4.0.0-rc.16"
+val retrohueVersion = "0.2.0"
 val minecraftVersion = "26.1.2"
 
 dependencies {
     compileOnly("io.papermc.paper:paper-api:$minecraftVersion.build.+")
-    compileOnly("org.winlogon:retrohue:0.2.0")
+    compileOnly("org.winlogon:retrohue:$retrohueVersion")
     compileOnly("org.winlogon:asynccraftr:0.2.0")
     implementation("org.jetbrains.kotlin:kotlin-stdlib:$kotlinVersion")
 
@@ -79,8 +80,14 @@ dependencies {
     implementation("io.github.revxrsal:lamp.brigadier:$lampVersion")
     
     testRuntimeOnly("org.junit.platform:junit-platform-launcher:1.11.4")
+    // the plugin ships neither, but the code under test is compiled against them
+    testRuntimeOnly("org.winlogon:retrohue:$retrohueVersion")
     testImplementation("io.papermc.paper:paper-api:$minecraftVersion.build.+")
     testImplementation("org.junit.jupiter:junit-jupiter:5.11.4")
+    // MockBukkit pins its own paper-api build, so drop it to keep a single paper-api on the test classpath
+    testImplementation("org.mockbukkit.mockbukkit:mockbukkit-v26.1.2:4.115.0") {
+        exclude(group = "io.papermc.paper", module = "paper-api")
+    }
 }
 
 tasks.test {
