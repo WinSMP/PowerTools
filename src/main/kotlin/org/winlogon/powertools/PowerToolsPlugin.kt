@@ -44,13 +44,13 @@ import org.winlogon.powertools.ChatFormatting.sendError
 
 class PowerToolsPlugin : JavaPlugin() {
     private lateinit var config: Configuration
-    private lateinit var absorbAnimal: AbsorbAnimal
+    private lateinit var absorbEntity: AbsorbEntity
     private lateinit var lamp: Lamp<BukkitCommandActor>
     private val romanNumeralRegex = """^(?=.)M{0,4}(CM|CD|D?C{0,3})(XC|XL|L?X{0,3})(IX|IV|V?I{0,3})$""".toRegex()
 
     override fun onEnable() {
         config = loadConfig()
-        absorbAnimal = AbsorbAnimal(this)
+        absorbEntity = AbsorbEntity(this)
 
         val sudoCommands = SudoCommands(this)
         lamp = BukkitLamp.builder(this).build()
@@ -141,13 +141,16 @@ class PowerToolsPlugin : JavaPlugin() {
     @CommandPermission("powertools.command.pack")
     fun pack(actor: BukkitCommandActor) {
         val player = actor.sender() as Player
-        player.sendRichMessage("<gray>You have <dark_aqua>5 seconds</dark_aqua> to right-click your pet to pack it.</gray>")
 
-        absorbAnimal.awaitClick(player).also { window ->
+        // only advertise what the player is actually allowed to pack
+        val target = if (player.hasPermission(PACK_VILLAGER_PERMISSION)) "pet or villager" else "pet"
+        player.sendRichMessage("<gray>You have <dark_aqua>5 seconds</dark_aqua> to right-click your $target to pack it.</gray>")
+
+        absorbEntity.awaitClick(player).also { window ->
             AsyncCraftr.runEntityTaskLater(this, player, {
-                // only complain if this window was still open, otherwise the pet was already packed
+                // only complain if this window was still open, otherwise the target was already packed
                 // or a newer window has taken over
-                if (absorbAnimal.cancel(player, window)) {
+                if (absorbEntity.cancel(player, window)) {
                     player.sendRichMessage("<gray>Pack window <red>expired</red>.</gray>")
                 }
             }, Duration.ofSeconds(5))
